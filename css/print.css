@@ -1,0 +1,113 @@
+@media print {
+	body {
+		margin:0mm;
+	}
+}
+
+table.tone-list {
+    border-collapse:collapse;
+    margin-bottom:50px;
+}
+table.tone-list td {
+    border:solid black;
+    border-width:1px;
+    height:20px;
+    padding:0 10px;
+}
+table.tone-list td small {
+    font-size:70%;
+    vertical-align:sub;
+}
+table.tone-list td:nth-child(2),
+table.tone-list td:nth-child(4) {
+    border-right:0;
+    min-width:50px;
+}
+table.tone-list td:nth-child(3),
+table.tone-list td:nth-child(5) {
+    padding-right:0;
+    border-left-width:0;
+}
+table.tone-list td:nth-child(3) div,
+table.tone-list td:nth-child(5) div {
+    position:relative;
+    bottom:10px;
+    min-width:60px;
+    padding:0 10px;
+    background-color:#000;
+    color:#fff;
+    border-radius:5px 0 0 5px;
+}
+table.tone-list .pianonote {
+    background-color:white;
+}
+table.tone-list .micronote{
+    background-color:rgb(128,128,192);
+}
+
+div.form {
+    position:fixed;
+    top:20px;
+    right:0px;
+    width:250px;
+    z-index:10;
+    background:#fff;
+}
+div.form fieldset {
+    padding:0;
+    margin:0;
+    border:none;
+}
+div.form div.group1 input, div.form div.group1 select {
+    width:50%;
+}
+div.form div {
+    padding-bottom:10px;
+}
+div.form button, div.form checkbox {
+    /*float:left;*/
+    display:none;
+}
+
+.hidden-key {
+    display:none;
+}
+
+/* old */
+
+table.tone-list td.white-key {
+    padding-right:0;
+    padding-left:10px;
+    border-right-width:0;
+}
+table.tone-list td.white-key div {
+    width:50px;
+}
+table.tone-list td.white-key-right {
+    border-left-width:0;
+}
+table.tone-list .black-key {
+    background-color:black;
+    color:white;
+    width:60px;
+    float:right;
+    position:relative;
+    top:11px;
+    padding-right:0;
+    padding-left:10px;
+    border-radius:5px 0 0 5px;
+}
+table.tone-list td.freq {
+    white-space:nowrap;
+    text-align:right;
+}
+table.tone-list tr.keyOnPiano {
+    background-color:grey;
+}
+table.tone-list td:first-child {
+    border:none;
+}
+table.tone-list td:last-child {
+    border:none;
+}
+

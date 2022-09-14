@@ -1,0 +1,412 @@
+<html>
+<head>
+<link id="ScreenStyleId" rel="stylesheet" href="css/screen.css" media="screen"/>
+<link id="PrintStyleId"  rel="stylesheet" href="css/print.css"  media="print"/>
+
+<script src="./js/jquery-3.6.1.min.js"></script>
+<script type="module" src="./js/piano-notes.js"></script>
+<script type="module">
+import * as Notes from "./js/piano-notes.js";
+
+const majorChords = [
+    "CEG",
+    "C#FG#",
+    "DbFAb",
+    "DF#A",
+    "D#GA#",
+    "EbGBb",
+    "EG#B",
+    "FAC",
+    "F#A#C#",
+    "GbBbDb",
+    "GBD",
+    "G#CD#",
+    "AbCEb",
+    "AC#E",
+    "A#DF",
+    "BbDF",
+    "BD#F#"
+];
+
+let pianoNotes;
+let atariNotes;
+let notesTable;
+let tuning;
+let tunedNotes = new Array();
+
+let changeInputs = [
+    'FreqId',
+    'AtariToneId',
+    'PrintSharpsId',
+    'TuningSensitivityId',
+    'VideoFormatId'
+    //'InnerJoinId'
+];
+
+let vidCfgLookup = {
+    'ntsc': Notes.ntsc_cfg,
+    'pal': Notes.pal_cfg
+};
+
+for (let e of changeInputs) {
+    document.getElementById(e).addEventListener('change', updatePage);
+}
+
+document.getElementById('ResetId').addEventListener('click', (evt) => {
+    evt.target.form.reset();
+    updatePage();
+});
+document.getElementById('NumMicroTonesId').addEventListener('change', (evt) => {
+    if (parseInt(evt.target.value) < 1)
+        evt.target.value = 1;
+	updatePage();
+});
+window.addEventListener('DOMContentLoaded', (evt) => {
+    loadOptions();
+	updatePage();
+    $('#FreqId').focus();
+});
+
+function updatePage() {
+    Notes.Options.videoCfg = vidCfgLookup[document.getElementById('VideoFormatId').value];
+    Notes.Options.a4Freq = parseFloat(document.getElementById('FreqId').value);
+    Notes.Options.atariPitch = parseInt(document.getElementById('AtariToneId').value);
+    Notes.Options.numMicroTones = parseInt(document.getElementById('NumMicroTonesId').value);
+    Notes.Options.tuningSensitivity = parseInt(document.getElementById('TuningSensitivityId').value);
+    Notes.Options.tuningPrecision = 2;
+    Notes.Options.freqPrecision = 1;
+    Notes.Options.centsPrecision = 1;
+    let printSharps = document.getElementById('PrintSharpsId').checked ? true : false;
+    //let innerJoin = document.getElementById('InnerJoinId').checked ? true : false;
+
+    notesTable = Notes.getNotePairs();
+    tuning = new Notes.Tuning(notesTable);
+
+    let outHtml = `<tr>
+<th>Key#</th>
+<th colspan="2">Piano</th>
+<th colspan="2" class="freq">Freq</th>
+<th>Atari</th>
+<th class="freq">Freq</th>
+<th class="freq">Cents</th>
+<th>Micro#</th>
+</tr>`;
+
+    for (let [microNum, pair] of notesTable) {
+        if (printSharps || pair.getPianoNote.getKey.indexOf('#') < 0) 
+            outHtml += buildRowHtml(pair);
+    }
+
+    let node = document.getElementById('tone-data');
+    $(node).html(outHtml);
+
+    updateBlackKeys();
+    updateKeyColors();
+
+    outHtml = buildMajorChordsHtml(notesTable);
+    node = document.getElementById('ChordsListId');
+    $(node).html(outHtml);
+
+    $("#VidFreqId").html(Math.round(Notes.Options.videoCfg.vid_freq).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " Hz");
+    $("#TotalAlignedId").html(tuning.getNumTuned);
+    $("#QualityId").html(tuning.getAvgCents);
+    $("#MaxRangeId").html(tuning.getCentRange + " [ " + tuning.getMinCents + " to " + tuning.getMaxCents + "]");
+    $("#NotesListId").html(tuning.getTunedNotes.join(", "));
+
+    saveOptions();
+}
+
+function buildRowHtml(pair) {
+    let numMicroTones = parseInt(document.getElementById('NumMicroTonesId').value);
+
+    let note = pair.getPianoNote;
+    let atari = pair.getAtariNote;
+
+    let ms = numMicroTones <= 1 ? '' : ` ${note.getMicroStep}`;
+    let key = `${note.getKey}<small>${note.getOctave}${ms}</small>`;
+    key = key.replace(/#/g, "&#x266f;");
+    key = key.replace(/b/g, "&#x266d;");
+
+    let flatKey = note.getFlatKey;
+    let sharpKey = note.getSharpKey;
+    let blackKey = '';
+    let blackFreq = '';
+
+    if (flatKey && sharpKey) {
+        blackKey = `<div>${flatKey} / ${sharpKey}</div>`;
+        blackFreq = `<div>${note.getFlatFrequency} / ${note.getSharpFrequency} Hz</div>`;
+    } else if (sharpKey) {
+        blackKey = `<div>${sharpKey}</div>`;
+        blackFreq = `<div>${note.getSharpFrequency} Hz</div>`;
+    } else if (flatKey) {
+        blackKey = flatKey;
+        blackFreq = `${note.getFlatFrequency} Hz`;
+    }
+
+    blackKey = blackKey.replace(/#/g, "&#x266f;");
+    blackKey = blackKey.replace(/b/g, "&#x266d;");
+
+    let color = 128;
+    let blue = 192;
+    
+    if (atari != null) {
+        color = Math.round(255 - (Math.abs(pair.getCents)/Notes.Options.tuningSensitivity*128));
+        blue = Math.round(255 - (Math.abs(pair.getCents)/Notes.Options.tuningSensititivy*64));
+    }
+
+    let clas = `micronum-${note.getMicroNum}`;
+    clas += (note.getMicroStep == 0) ? ' pianonote"' : ' micronote';
+
+    let bkId = (note.getMicroStep == 0) ? `id="blackkey-${note.getKeyNum}"` : '';
+    let bfId = (note.getMicroStep == 0) ? `id="blackfreq-${note.getKeyNum}"` : '';
+
+    let html = `
+<tr class="${clas}">
+<td>${note.getKeyNum}</td>
+<td>${key}</td>
+<td ${bkId}></td>
+<td>${note.getFrequency} Hz</td>
+<td ${bfId}></td>`;
+
+    if(atari != null) {
+        let atariFreq = pair.getAtariNote.getFrequency + " Hz";
+        let atariPitch = pair.getAtariNote.getPitch;
+        let cents = pair.getCents;
+
+        html += `
+<td>${atari.getPitch}</td>
+<td>${atari.getFrequency} Hz</td>
+<td>${pair.getCents}</td>`;
+    } else {
+        html += '<td></td><td></td><td></td>';
+    }
+
+    html += `<td>${note.getMicroNum}</td></tr>`;
+    return html;
+}
+
+function updateBlackKeys() {
+    let prevNote = null;
+    for (let [microNum, pair] of notesTable) {
+        let currNote = pair.getPianoNote;
+
+        if (currNote.getMicroStep == 0 && currNote.getFlatKey.indexOf('b') >= 0) {
+            let elem = document.getElementById(`blackkey-${currNote.getKeyNum}`);
+
+            let html = currNote.getFlatKey;
+            if (prevNote != null)
+                html += ` / ${prevNote.getSharpKey}`;
+
+            elem.innerHTML = `<div>${html}</div>`;
+        }
+
+        if (currNote.getMicroStep == 0 && currNote.getSharpKey.indexOf('#') >= 0)
+            prevNote = currNote;
+    }
+}
+
+function updateKeyColors() {
+    for (let [microNum, pair] of notesTable) {
+        let color = 128;
+        let blue = 192;
+        let colorRange = 255-color;
+        let blueRange= 255-blue;
+
+        if (pair.getAtariNote != null) {
+            let cents = pair.getCents;
+            let colorRatio = Math.abs(cents) / Notes.Options.tuningSensitivity;
+            let blueRatio = Math.abs(cents) / Notes.Options.tuningSensitivity;
+            color = Math.round(255 - Math.min(128 * colorRatio, 128));
+            blue  = Math.round(255 - Math.min(64 * blueRatio, 64));
+        }
+
+        let e = document.getElementsByClassName(`micronum-${microNum}`)[0];
+        if (e) {
+            e.style.backgroundColor = `rgb(${color},${color},${blue})`;
+        }
+    }
+
+}
+
+function buildMajorChordsHtml(notesTable) {
+    let html = '';
+    let currNotes = [];
+    let currLetters = [];
+
+    for (let note of tunedNotes) {
+        let letter = note.match(/^[A-G#?]/);
+        currNotes.push(letter);
+        //currLetters.push(note);
+
+        if (currNotes.length > 2) {
+            let testChord = currNotes.join("");
+
+            for (let ch of majorChords) {
+                if (ch.indexOf(testChord) >= 0) {
+                    html += ` (<b>${ch}</b>)`;
+                }
+            }
+
+            currNotes.shift();
+        }
+    }
+
+    return html;
+}
+
+function saveOptions() {
+    let frm = document.getElementById("OptionsFormId");
+    let data = {};
+
+    for (let i = 0; i < frm.elements.length; i++) {
+        if (typeof frm.elements[i].value != 'undefined') {
+            if (frm.elements[i].type === 'checkbox') 
+                data[frm.elements[i].name] = (frm.elements[i].checked ? 'Yes' : 'No');
+            else
+                data[frm.elements[i].name] = frm.elements[i].value;
+        }
+    }
+
+    window.localStorage.setItem("OptionsFormId", JSON.stringify(data));
+}
+
+function loadOptions(defaults) {
+    let frm = document.getElementById("OptionsFormId");
+    let str = window.localStorage.getItem("OptionsFormId");
+
+    if (str != null) {
+        let data = JSON.parse(str);
+        for (let key in data) {
+            if (typeof frm[key] != 'undefined') {
+                if (frm[key].type === 'checkbox') {
+                    frm[key].checked = (data[key] === 'Yes' ? true : false);
+                } else {
+                    frm[key].value = data[key];
+                }
+            }
+        }
+    }
+}
+
+function setOnly(obj, val) {
+    return obj == null || obj === '' || obj === false || typeof obj === 'undefined' ? '' : val;
+}
+
+</script>
+
+</head>
+
+<body onfocus="$('div.form').show()">
+<table class="tone-list">
+<tbody id="tone-data"></tbody>
+</table>
+
+<div class="form">
+<form id="OptionsFormId">
+    <fieldset>
+    <legend>Options</legend>
+
+    <div class="group1">
+    <input type="number" id="FreqId" name="Freq" value="440.0" size="8" min="1.0">
+    <label for="A4Freq">A4 frequency (Hz)</label>
+    <input type="number" id="TuningSensitivityId" name="TuningSensitivity" value="50" size="8" min="0" max="50">
+    <label for="TuningSensitivityId">Tuning sensitivity (cents)</label>
+    <br>
+
+    <select id="TuningMethodId" name="TuningMethod">
+    <option value="equal">Equal Temperment (ET)</option>
+    <!-- option value="just">Just</option>
+    <option value="pyth">Pythagorean</option>
+    <option value="mean">Meantone</option -->
+    </select>
+    <label for="TuningMethodId">Tuning method</label>
+    <br>
+
+    <input type="number" id="TransposeId" name="Transpose" value="0" size="5">
+    <label for="TransposeId">Transpose (cents)</label>
+    <br>
+
+    <input type="number" id="NumMicroTonesId" name="NumMicroTones" value="1" size="5" min="1">
+    <label for="NumMicroTonesId">Microtones per key</label>
+    <br>
+
+    <select id="AtariToneId" name="AtariTone">
+    <option value="0">0 or 11 (silence)</option>
+    <option value="1">1 (buzzy high pitch)</option>
+    <option value="2">2 (noisy engine)</option>
+    <option value="3">3 (buzzy engine)</option>
+    <option value="4" selected>4 or 5 (pure high tone)</option>
+    <option value="6">6 or 10 (buzzy pure)</option>
+    <option value="7">7 or 9 (buzzy medium pitch)</option>
+    <option value="8">8 (noise)</option>
+    <option value="12">12 or 13 (pure medium tone)</option>
+    <option value="14">14 (low rumble)</option>
+    <option value="15">15 (loud rumble)</option>
+    </select>
+    <label for="AtariToneId">Atari tone (AUDC)</label>
+    <br>
+
+    <select id="VideoFormatId" name="VideoFormat">
+    <option value="ntsc">NTSC</option>
+    <option value="pal">PAL</option>
+    </select>
+    <label for="VideoFormatId">Video format</label>
+    </div>
+
+    <div>
+    <fieldset>
+    <legend>Show</legend>
+    <input type="checkbox" id="PrintFlatsId" name="PrintFlats" value="Yes">
+    <label for="PrintFlatsId">&#x266d; rows</label>
+    <input type="checkbox" id="PrintSharpsId" name="PrintSharps" value="Yes">
+    <label for="PrintSharpsId">&#x266f; rows</label>
+    <input type="checkbox" id="PrintChordsId" name="PrintChords" value="Yes">
+    <label for="PrintChordsId">Chords</label>
+    <br>
+    <input type="checkbox" id="PrintFreqId" name="PrintFreq" value="Yes">
+    <label for="PrintFreqId">Frequency</label>
+    </fieldset>
+    </div>
+
+    <div>
+    <fieldset>
+    <legend>Operations</legend>
+    <!-- input type="checkbox" id="InnerJoinId" name="InnerJoinId" value="Yes" checked>
+    <label for="InnerJoinId">Inner join</label -->
+    <input type="checkbox" id="ExpandPianoId" name="ExpandPiano" value="Yes">
+    <label for="ExpandPianoId">Expand piano</label>
+    <input type="checkbox" id="TruncatePianoId" name="TruncatePiano" value="Yes">
+    <label for="TruncatePianoId">Truncate piano</label>
+    <br>
+    <input type="checkbox" id="JumpToFirstId" name="JumpToFirst" value="Yes">
+    <label for="JumpToFirstId">Jump to Atari notes</label>
+    <br>
+    <button id="ResetId" name="Reset">Reload Defaults</button>
+    </fieldset>
+    </div>
+
+    <div>
+    <fieldset>
+    <legend>Output</legend>
+    <button id="PrintPianoId" name="Print" onclick="$('div.form').hide(); window.print()">Print Piano</button>
+    <button id="PrintPageId" name="Print" onclick="window.print()">Print Page</button>
+    <input type="checkbox" id="SoundOnId" name="SoundOnId">
+    <label for="SoundOnId">Sound Enabled</label>
+    </fieldset>
+    </div>
+
+    <div>Video Frequency: <span id="VidFreqId"></span></div>
+    <div>Total in "tune": <span id="TotalAlignedId">0</span></div>
+    <div>Avg cents: <span id="QualityId">0</span></div>
+    <div>Cent range: <span id="MaxRangeId">0</span></div>
+    <div>Notes: <span id="NotesListId"></span></div>
+    <div>Major Chords: <span id="ChordsListId"></span></div>
+
+    </fieldset>
+</form>
+</div>
+
+<div id="debug" stye="clear:left"><div>
+
+</body>
+</html>
