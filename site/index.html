@@ -1,14 +1,17 @@
 <html>
 <head>
-<link rel="stylesheet" href="/0.1/css/index.css"    media="all" id="ScreenStyleId"/>
-<link rel="stylesheet" href="/0.1/css/carousel.css" media="all"/>
 
-<script type="application/javascript" src="/0.1/js/jquery-3.6.1.min.js"></script>
-<script type="module" src="/0.1/js/notes.js"></script>
-<script type="module" src="/0.1/js/carousel.js"></script>
+<base href="../0.1/">
+
+<link rel="stylesheet" href="./css/index.css"    media="all" id="ScreenStyleId"/>
+<link rel="stylesheet" href="./css/carousel.css" media="all"/>
+
+<script type="application/javascript" src="./js/jquery-3.6.1.min.js"></script>
+<script type="module" src="./js/notes.js"></script>
+<script type="module" src="./js/carousel.js"></script>
 
 <script type="module">
-import * as Notes from "/0.1/js/notes.js"
+import * as Notes from "./js/notes.js"
 
 window.addEventListener('DOMContentLoaded', (evt) => {
     Notes.Options.load();
