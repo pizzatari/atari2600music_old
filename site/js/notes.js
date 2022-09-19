@@ -1,4 +1,4 @@
-import {Carousel} from "./carousel.js";
+import {Carousel} from "/0.1/js/carousel.js";
 
 export const NTSC_FREQ          = 315/88*1000*1000;    // MHz
 export const NTSC_FPS           = 60/1.001;            // fields per second
