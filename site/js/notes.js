@@ -644,14 +644,14 @@ export function updatePage() {
     tuning = new Tuning(notesTable);
 
     let outHtml = `<tr>
-<th>Piano</th>
+<th title="Piano notes relative to the A4 key frequency.">Piano</th>
 <th class="spacer"></th>
-<th class="freq">P. Freq</th>
-<th>Atari</th>
-<th class="freq">A. Freq</th>
-<th>Cents</th>
-<th>Key#</th>
-<th>Micro#</th>
+<th class="freq" title="Piano Frequency">P. Freq</th>
+<th title="Atari pitch (AUDC)">Atari</th>
+<th class="freq" title="Atari Frequency">A. Freq</th>
+<th title="Tuning difference between the piano reference note and the Atari note.">Cents</th>
+<th title="Numeric key position on the piano">Key#</th>
+<th title="Numeric position if the piano had micro tones.">Micro#</th>
 </tr>`;
 
     let firstAtariNote = 0;

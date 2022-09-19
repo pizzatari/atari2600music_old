@@ -42,6 +42,13 @@ table.tone-list td:first-child {
     border-bottom-left-radius:5px;
     padding-right:0;
 }
+/*
+@media print {
+    table.tone-list td:first-child :not(div) {
+        writing-mode:vertical-rl;
+    }
+}
+*/
 table.tone-list td:first-child div {
     float:right;
     position:relative;
