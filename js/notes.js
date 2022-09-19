@@ -758,8 +758,9 @@ function buildRowHtml(pair) {
     let blackKey = '';
     let blackFreq = '';
 
+    /*
     if (flatKey && sharpKey) {
-        blackKey = `<div>${flatKey} / ${sharpKey}</div>`;
+        blackKey = `<div>${sharpKey} / ${flatKey}</div>`;
         blackFreq = `<div>${note.getFlatFrequency} / ${note.getSharpFrequency} Hz</div>`;
     } else if (sharpKey) {
         blackKey = `<div>${sharpKey}</div>`;
@@ -767,6 +768,12 @@ function buildRowHtml(pair) {
     } else if (flatKey) {
         blackKey = flatKey;
         blackFreq = `${note.getFlatFrequency} Hz`;
+    }
+    */
+
+    if (note.getIsBlackKey) {
+        blackKey = `<div>${sharpKey} / ${flatKey}</div>`;
+        blackFreq = `<div>${note.getSharpFrequency} / ${note.getFlatFrequency} Hz</div>`;
     }
 
     blackKey = blackKey.replace(/#/g, "&#x266f;");
@@ -821,7 +828,7 @@ function updateBlackKeys() {
             if(elem != null) {
                 let html = currNote.getFlatKey;
                 if (prevNote != null)
-                    html += ` / ${prevNote.getSharpKey}`;
+                    html = `${prevNote.getSharpKey}/${html}`;
                 html += `<small>${prevNote.getOctave}</small>`;
 
                 elem.innerHTML = `${html}`;
