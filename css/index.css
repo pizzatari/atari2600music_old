@@ -1,0 +1,145 @@
+body * {
+    font-family:Tahoma,Verdana,sans-serif;
+    font-size:10pt;
+}
+@media print {
+	body { margin:0mm; }
+}
+
+@media screen {
+	canvas#GeometryId {
+		float:left;
+	}
+}
+@media print {
+	canvas#GeometryId {
+		float:none;
+		clear:both;
+	}
+}
+
+table.tone-list {
+	float:left;
+    margin-bottom:50px;
+    border-spacing:0;
+    border-collapse:separate;
+}
+table.tone-list tr:nth-child(2) td {
+	border-top:1px solid #777;
+}
+table.tone-list td {
+    border:solid black;
+	border-color:#fff #000 #000 #777;
+	border-width:1px;
+    height:20px;
+    padding:0 10px;
+}
+table.tone-list td:first-child {
+    min-width:130px;
+    border-right:0;
+    border-left-style:solid;
+    border-top-left-radius:5px; 
+    border-bottom-left-radius:5px;
+    padding-right:0;
+}
+table.tone-list td:first-child div {
+	float:right;
+	position:relative;
+	width:50%;
+	right:0px;
+    bottom:10px;
+    padding:0 10px;
+    background-color:#000;
+    color:#fff;
+    border-top-left-radius:5px; 
+    border-bottom-left-radius:5px;
+}
+table.tone-list td:last-child {
+	border-right:solid black 1px;
+}
+table.tone-list td small {
+    font-size:70%;
+    vertical-align:sub;
+}
+table.tone-list td.spacer {
+    background-color:#fff;
+	border-width:0 0 0 1px;
+	width:10px;
+	padding:0;
+}
+table.tone-list td span.step {
+	font-size:70%;
+}
+table.tone-list .pianonote {
+    background-color:white;
+}
+table.tone-list .micronote {
+    background-color:rgb(128,128,192);
+}
+table.tone-list td:nth-child(3),
+table.tone-list td:nth-child(5)
+{
+	font-size:85%;
+}
+
+table tr:hover td {
+	border-top-color:red;
+	border-bottom-color:red;
+}
+table tr:hover td:first-child {
+	border-left-color:red;
+}
+table tr:hover td:last-child {
+	border-right-color:red;
+}
+table tr:hover td.spacer {
+	border-width:1px 0 1px 1px;
+}
+
+#OptionsId {
+    position:absolute;
+    top:10px;
+    right:10px;
+    width:365px;
+    z-index:10;
+    background:#fff;
+}
+#OptionsId fieldset:first-child input, #OptionsId fieldset:first-child select {
+    margin-top:5px;
+    width:50%;
+}
+#OptionsId #ResetId {
+    clear:both;
+    margin-top: 10px;
+}
+#OptionsId .info span {
+    font-weight:bold;
+}
+#OptionsId #NotesListId {
+    padding-left:1em;
+}
+#OptionsId #NotesListId span {
+    line-height:2em;
+    margin-left:-1em;
+}
+#OptionsId #ChordsListId {
+    min-height:50px;
+}
+@media print {
+    #OptionsId {
+        right:0px;
+        width:290px;
+    }
+    #OptionsId fieldset {
+        padding:5px;
+        margin:0;
+    }
+    #OptionsId button, #OptionsId input[type="range"] {
+		display:none;
+	}
+/*
+    #GeometryId {
+        display:none;
+    }
+*/
+}
