@@ -3,34 +3,34 @@ body * {
     font-size:10pt;
 }
 @media print {
-	body { margin:0mm; }
+    body { margin:0mm; }
 }
 
 @media screen {
-	canvas#GeometryId {
-		float:left;
-	}
+    canvas#GeometryId {
+        float:left;
+    }
 }
 @media print {
-	canvas#GeometryId {
-		float:none;
-		clear:both;
-	}
+    canvas#GeometryId {
+        float:none;
+        clear:both;
+    }
 }
 
 table.tone-list {
-	float:left;
+    float:left;
     margin-bottom:50px;
     border-spacing:0;
     border-collapse:separate;
 }
 table.tone-list tr:nth-child(2) td {
-	border-top:1px solid #777;
+    border-top:1px solid #777;
 }
 table.tone-list td {
     border:solid black;
-	border-color:#fff #000 #000 #777;
-	border-width:1px;
+    border-color:#fff #000 #000 #777;
+    border-width:1px;
     height:20px;
     padding:0 10px;
 }
@@ -43,10 +43,10 @@ table.tone-list td:first-child {
     padding-right:0;
 }
 table.tone-list td:first-child div {
-	float:right;
-	position:relative;
-	width:50%;
-	right:0px;
+    float:right;
+    position:relative;
+    width:50%;
+    right:0px;
     bottom:10px;
     padding:0 10px;
     background-color:#000;
@@ -55,7 +55,7 @@ table.tone-list td:first-child div {
     border-bottom-left-radius:5px;
 }
 table.tone-list td:last-child {
-	border-right:solid black 1px;
+    border-right:solid black 1px;
 }
 table.tone-list td small {
     font-size:70%;
@@ -63,12 +63,12 @@ table.tone-list td small {
 }
 table.tone-list td.spacer {
     background-color:#fff;
-	border-width:0 0 0 1px;
-	width:10px;
-	padding:0;
+    border-width:0 0 0 1px;
+    width:10px;
+    padding:0;
 }
 table.tone-list td span.step {
-	font-size:70%;
+    font-size:70%;
 }
 table.tone-list .pianonote {
     background-color:white;
@@ -79,21 +79,21 @@ table.tone-list .micronote {
 table.tone-list td:nth-child(3),
 table.tone-list td:nth-child(5)
 {
-	font-size:85%;
+    font-size:85%;
 }
 
 table tr:hover td {
-	border-top-color:red;
-	border-bottom-color:red;
+    border-top-color:red;
+    border-bottom-color:red;
 }
 table tr:hover td:first-child {
-	border-left-color:red;
+    border-left-color:red;
 }
 table tr:hover td:last-child {
-	border-right-color:red;
+    border-right-color:red;
 }
 table tr:hover td.spacer {
-	border-width:1px 0 1px 1px;
+    border-width:1px 0 1px 1px;
 }
 
 #OptionsId {
@@ -135,11 +135,6 @@ table tr:hover td.spacer {
         margin:0;
     }
     #OptionsId button, #OptionsId input[type="range"] {
-		display:none;
-	}
-/*
-    #GeometryId {
         display:none;
     }
-*/
 }
