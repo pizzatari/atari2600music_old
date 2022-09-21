@@ -823,7 +823,7 @@ export class Page {
         ctx.strokeStyle = "black";
         ctx.save();
 
-        let yScale = canvas.height / NotePair.maxCents;
+        let yScale = (canvas.height-5) / NotePair.maxCents;
         let w = Math.floor(canvas.width / Page.notesTable.getAtariNotes.length);
         let x = 0;
         let y = canvas.height;
@@ -832,6 +832,9 @@ export class Page {
         let pivot = new Array(32);
         for(let [microNum, pair] of Page.notesTable.getNotePairs) {
             if (isNaN(pair.getCents)) continue;
+
+            if (Math.abs(pair.getCents) > Options.tuningSensitivity) continue;
+
             let pitch = pair.getAtariNote.getPitch;
             pivot[pitch] = pair.getCents;
         }
@@ -842,7 +845,10 @@ export class Page {
             if(pivot[pitch]) {
                 let h = Math.ceil(Math.abs(pivot[pitch] * yScale));
                 ctx.fillStyle = `rgb(${color},${color},${color})`;
-                ctx.fillRect(x, y, w, -h);
+                ctx.fillRect(x, y, w, -h - 5) ;
+            } else {
+                ctx.fillStyle = 'red';
+                ctx.fillRect(x, y, w, -5);
             }
 
             x += w;
