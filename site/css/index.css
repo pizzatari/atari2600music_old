@@ -111,9 +111,15 @@ table tr:hover td.spacer {
     z-index:10;
     background:#fff;
 }
+#OptionsId legend {
+    font-weight:bold;
+}
 #OptionsId fieldset:first-child input, #OptionsId fieldset:first-child select {
     margin-top:5px;
     width:50%;
+}
+#OptionsId fieldset:first-child #TuningGradientId {
+    width:auto;
 }
 #OptionsId #ResetId {
     clear:both;

@@ -1,10 +1,3 @@
-//const SharpChar = "&#x266f;";
-//const FlatChar  = "&#x266d;";
-//const SharpChar = '#';
-//const FlatChar  = 'b';
-const SharpChar = '♯';
-const FlatChar  = '♭';
-
 export class Carousel {
     labels = Array(12).fill("Item");
     canvas = null;
@@ -14,6 +7,7 @@ export class Carousel {
     lineWidth = 5.0;
     radialMargin = 0.40;
     nodeRadius = 35;
+    rotation = 0;
 
     constructor (canvas, labels, font) {
         this.canvas = canvas;

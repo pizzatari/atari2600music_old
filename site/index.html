@@ -1,7 +1,8 @@
+<!DOCTYPE html>
 <html>
 <head>
 
-<base href="../0.1/">
+<base href="../0.2/">
 
 <title>Atari 2600 Music Explorer</title>
 
@@ -16,11 +17,11 @@
 import * as Notes from "./js/notes.js"
 
 window.addEventListener('DOMContentLoaded', (evt) => {
-    Notes.Options.load();
-
-    let table = document.getElementById('NotesTableContainer');
-    let nTab = new Notes.NotesTable(table);
-    nTab.render();
+    Notes.Options.loadFromStorage();
+    Notes.Options.writeToForm();
+    let notesTable = new Notes.NotesTable(true);
+    Notes.Page.initialize(notesTable, 'NotesTableContainerId', 'GeometryContainerId');
+    Notes.Page.render();
 
     document.getElementById('A4FreqId').focus();
 });
@@ -29,14 +30,17 @@ window.addEventListener('DOMContentLoaded', (evt) => {
 </head>
 
 <body>
+    <h1>Atari 2600 Music Explorer (<a href="https://pizzatari.github.io/atari2600music" title="Canonical link to this site">https://pizzatari.github.io/atari2600music</a>)</h1>
 
-<h1>Atari 2600 Music Explorer</h1>
+<div id="NotesTableContainerId"></div>
 
-<div id="NotesTableContainer"></div>
-
+<!--
 <table class="tone-list">
 <tbody id="tone-data"></tbody>
 </table>
+-->
+
+<div id="GeometryContainerId"></div>
 
 <canvas id="GeometryId" width="400" height="400"></canvas>
 
@@ -48,6 +52,8 @@ window.addEventListener('DOMContentLoaded', (evt) => {
         <input type="number" id="TuningSensitivityId" name="TuningSensitivity" value="50" size="8" min="0" max="50" class="frm">
         <label for="TuningSensitivityId">Tuning sensitivity (cents)</label>
         <input type="range" id="TuningSensitivityRangeId" name="TuningSensitivityRange" value="50" min="0" max="50" class="frm">
+        <input type="checkbox" id="TuningGradientId" name="TuningGradientId" value="Yes" class="frm" checked>
+        <label for="TuningGradientId">Color Gradient</label>
         <br>
 
         <select id="TuningId" name="Tuning" class="frm">
@@ -133,6 +139,7 @@ window.addEventListener('DOMContentLoaded', (evt) => {
         <div>Total in "tune": <span id="TotalTunedId">0</span></div>
         <div>Avg cents: <span id="QualityId">0</span></div>
         <div>Cent range: <span id="MaxRangeId">0</span></div>
+        <div>Cent Distribution over Atari Pitches (31 to 0): <canvas id="DistributionId" width="320" height="50"></canvas></div>
     </fieldset>
 
     <fieldset><legend>"Tuned" Notes</legend>

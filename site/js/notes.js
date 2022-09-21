@@ -1,5 +1,3 @@
-console.log(import.meta);
-
 import {Carousel} from "./carousel.js";
 
 export const NTSC_FREQ          = 315/88*1000*1000;    // MHz
@@ -77,124 +75,91 @@ let notesTable;
 let tuning;
 let tunedNotes = new Array();
 
-let changeInputs = [
-    'A4FreqId',
-    'TuningSensitivityId',
-    //'TuningId',
-    'TransposeId',
-    'NumMicroTonesId',
-    'AtariPitchId',
-    'VideoFormatId',
-    'PrintBlackKeysId',
-    'PrintGeometryId',
-    'PrintFrequencyId',
-    //'ExpandPianoId',
-    'ShrinkPianoId',
-    'JumpToFirstId'
-    //'InnerJoinId'
-    //'JumpToFirstId',
-    //'SoundOnId'
-];
+const ntsc_cfg = {
+    'name'      : 'ntsc',
+    'vid_freq'  : NTSC_FREQ,
+    'cpu_freq'  : NTSC_CPU_FREQ,
+    'fps'       : NTSC_FPS
+};
 
-let rangeInputs = new Map([
-    [ 'A4FreqRangeId',            'A4FreqId' ],
-    [ 'TuningSensitivityRangeId', 'TuningSensitivityId' ],
-    [ 'TransposeRangeId',         'TransposeId' ],
-    [ 'NumMicroTonesRangeId',     'NumMicroTonesId' ]
-]);
+const pal_cfg = {
+    'name'      : 'pal',
+    'vid_freq'  : PAL_FREQ,
+    'cpu_freq'  : PAL_CPU_FREQ,
+    'fps'       : PAL_FPS
+};
 
-let reverseRangeInputs = new Map();
-rangeInputs.forEach((value, key) => { reverseRangeInputs.set(value, key); });
+const vid_cfg = {
+    'ntsc': ntsc_cfg,
+    'pal': pal_cfg
+};
 
 // classes
 export class Options {
-    static ntsc_cfg = {
-        'name'      : 'ntsc',
-        'vid_freq'  : NTSC_FREQ,
-        'cpu_freq'  : NTSC_CPU_FREQ,
-        'fps'       : NTSC_FPS
-    };
+    static a4Freq;
+    static tuningSensitivity;
+    static tuningGradient;
+    static transpose;
+    static numMicroTones;
+    static atariPitch;
+    static videoCfg;
+    static printBlackKeys;
+    static printGeometry;
+    static printFrequency;
+    static expandPiano;
+    static shrinkPiano;
+    static jumpToFirst;
+    static innerJoin;
+    static enableSound;
 
-    static pal_cfg = {
-        'name'      : 'pal',
-        'vid_freq'  : PAL_FREQ,
-        'cpu_freq'  : PAL_CPU_FREQ,
-        'fps'       : PAL_FPS
-    };
+    static freqPrecision;
+    static centPrecision;
 
-    static cfg = {
-        'ntsc': Options.ntsc_cfg,
-        'pal': Options.pal_cfg
-    };
+    static firstPianoKey;
+    static lastPianoKey;
+    static firstPianoOctave;
 
-    static videoCfg = Options.ntsc_cfg;
-    static a4Freq = 440.0
-    static atariPitch = 4;
-    static numMicroTones = 1;
-    static tuningSensitivity = 50;
-    static tuningPrecision = 1;
-    static freqPrecision = 1;
-    static centPrecison = 1;
-    static printBlackKeys = false;
-    static printGeometry = true;
-    static printFrequency = false;
-    static expandPiano = false;
-    static shrinkPiano = false;
-    static jumpToFirst = false;
-    static innerJoin = false;
-    static firstPianoKey = KEY_FIRST;
-    static lastPianoKey = KEY_LAST;
-    static firstPianoOctave = OCTAVE_FIRST;
-
-    static getCfg(name) {
-        return Options.cfg[name];
+    static {
+        Options.loadDefaults();
     }
 
-    static save() {
-        let frm = document.getElementsByClassName("frm");
-        let data = {};
-
-        for (let i = 0; i < frm.length; i++) {
-            if (typeof frm[i].value != 'undefined') {
-                if (frm[i].type === 'checkbox') 
-                    data[frm[i].name] = (frm[i].checked ? 'Yes' : 'No');
-                else
-                    data[frm[i].name] = frm[i].value;
-            }
-        }
-
-        window.localStorage.setItem("OptionsFormId", JSON.stringify(data));
+    static getVideoCfg(name) {
+        return vid_cfg[name];
     }
 
-    static load() {
-        let frm = document.getElementsByClassName("frm");
-        let str = window.localStorage.getItem("OptionsFormId");
+    static loadDefaults() {
+        Options.a4Freq = 440.0
+        Options.tuningSensitivity = 50;
+        Options.tuningGradient = true;
+        Options.transpose = 0;
+        Options.numMicroTones = 1;
+        Options.atariPitch = 1;
+        Options.videoCfg = ntsc_cfg;
+        Options.printBlackKeys = false;
+        Options.printGeometry = true;
+        Options.printFrequency = true;
+        Options.shrinkPiano = false;
+        Options.expandPiano = false;
+        Options.jumpToFirst = false;
+        Options.innerJoin = false;
+        Options.enableSound = false;
 
-        let obj = {};
-        for (let i = 0; i < frm.length; i++) {
-            obj[frm[i].name] = frm[i];
-        }
+        Options.freqPrecision = 1;
+        Options.centPrecision = 1;
 
-        if (str != null) {
-            let data = JSON.parse(str);
-            for (let key in data) {
-                if (typeof obj[key] != 'undefined') {
-                    if (obj[key].type === 'checkbox') {
-                        obj[key].checked = (data[key] === 'Yes' ? true : false);
-                    } else {
-                        obj[key].value = data[key];
-                    }
-                }
-            }
-        }
+        Options.firstPianoKey = KEY_FIRST;
+        Options.lastPianoKey = KEY_LAST;
+        Options.firstPianoOctave = OCTAVE_FIRST;
     }
 
-    static refresh() {
-        Options.videoCfg = Options.getCfg(document.getElementById('VideoFormatId').value);
+    static readFromForm() {
         Options.a4Freq = parseFloat(document.getElementById('A4FreqId').value);
-        Options.atariPitch = parseInt(document.getElementById('AtariPitchId').value);
-        Options.numMicroTones = parseInt(document.getElementById('NumMicroTonesId').value);
         Options.tuningSensitivity = parseInt(document.getElementById('TuningSensitivityId').value);
+        Options.tuningGradient = document.getElementById('TuningGradientId').checked ? true : false;
+        Options.transpose = parseInt(document.getElementById('AtariPitchId').value);
+        Options.numMicroTones = parseInt(document.getElementById('NumMicroTonesId').value);
+        Options.atariPitch = parseInt(document.getElementById('AtariPitchId').value);
+        Options.videoCfg = Options.getVideoCfg(document.getElementById('VideoFormatId').value);
         Options.printBlackKeys = document.getElementById('PrintBlackKeysId').checked ? true : false;
         Options.printGeometry = document.getElementById('PrintGeometryId').checked ? true : false;
         Options.printFrequency = document.getElementById('PrintFrequencyId').checked ? true : false;
@@ -202,31 +167,15 @@ export class Options {
         Options.shrinkPiano = document.getElementById('ShrinkPianoId').checked ? true : false;
         Options.jumpToFirst = document.getElementById('JumpToFirstId').checked ? true : false;
         //Options.innerJoin = document.getElementById('InnerJoinId').checked ? true : false;
+        //Options.enableSound = document.getElementById('EnableSoundId').checked ? true : false;
     }
 
-    static loadDefaults() {
-        Options.a4Freq = 440.0
-        Options.tuningSensitivity = 50;
-        Options.transpose = 0;
-        Options.numMicroTones = 1;
-        Options.atariPitch = 1;
-        Options.videoCfg = Options.ntsc_cfg;
-        Options.printBlackKeys = false;
-        Options.printGeometry = true;
-        Options.printFrequency = false;
-        Options.shrinkPiano = false;
-        Options.expandPiano = false;
-        Options.jumpToFirst = false;
-
-        Options.tuningPrecision = 1;
-        Options.freqPrecision = 1;
-        Options.centPrecison = 1;
-        Options.innerJoin = false;
-
+    static writeToForm() {
         document.getElementById('A4FreqId').value = Options.a4Freq;
         document.getElementById('A4FreqRangeId').value = parseInt(Options.a4Freq);
         document.getElementById('TuningSensitivityId').value = Options.tuningSensitivity;
         document.getElementById('TuningSensitivityRangeId').value = Options.tuningSensitivity;
+        document.getElementById('TuningGradientId').checked = Options.tuningGradient;
         document.getElementById('TransposeId').value = Options.transpose;
         document.getElementById('TransposeRangeId').value = Options.transpose;
         document.getElementById('NumMicroTonesId').value = Options.numMicroTones;
@@ -239,8 +188,35 @@ export class Options {
         //document.getElementById('ExpandPianoId').checked = Options.expandPiano;
         document.getElementById('ShrinkPianoId').checked = Options.shrinkPiano;
         document.getElementById('JumpToFirstId').checked = Options.jumpToFirst;
+        //document.getElementById('EnableSoundId').checked = Options.enableSound;
+    }
 
-        document.getElementById('TuningSensitivityId').value = Options.tuningSensitivity;
+    static saveToStorage() {
+		let opts = {};
+
+		for (let n in Options) {
+			if (n === 'videoCfg')
+				opts[n] = Options[n].name
+			else
+				opts[n] = Options[n];
+		}
+
+        window.localStorage.setItem("Options", JSON.stringify(opts));
+    }
+
+    static loadFromStorage() {
+        let str = window.localStorage.getItem("Options");
+		if (str == null) return;
+
+        let opts = JSON.parse(str);
+		if (opts == null) return;
+
+		for (let n in opts) {
+			if (n === 'videoCfg')
+				Options[n] = Options.getVideoCfg(opts[n]);
+			else
+				Options[n] = opts[n];
+		}
     }
 }
 
@@ -261,16 +237,14 @@ export class PianoNote {
     #microNum = '';
     #microStep = 0;
 
-    static precision = 1;
-
     get getOctave() { return this.#octave; }
     get getKey() { return this.#key; }
     get getSharpKey() { return this.#sharpKey; }
     get getFlatKey() { return this.#flatKey; }
 
-    get getFrequency() { return Math.round(this.#frequency * 10**PianoNote.precision)/10**PianoNote.precision; }
-    get getSharpFrequency() { return Math.round(this.#sharpFrequency * 10**PianoNote.precision)/10**PianoNote.precision; }
-    get getFlatFrequency() { return Math.round(this.#flatFrequency * 10**PianoNote.precision)/10**PianoNote.precision; }
+    get getFrequency() { return Math.round(this.#frequency * 10**Options.freqPrecision)/10**Options.freqPrecision; }
+    get getSharpFrequency() { return Math.round(this.#sharpFrequency * 10**Options.freqPrecision)/10**Options.freqPrecision; }
+    get getFlatFrequency() { return Math.round(this.#flatFrequency * 10**Options.freqPrecision)/10**Options.freqPrecision; }
 
     get getKeyColor() { return this.#keyColor; }
     get getIsBlackKey() { return this.#isBlackKey; }
@@ -325,8 +299,6 @@ export class AtariNote {
     #pitch = 0;
     #frequency = 0.0;
 
-    static precision = 1;
-
     constructor(microNum, type, pitch, frequency) {
         this.#microNum = microNum;
         this.#type = type;
@@ -336,7 +308,7 @@ export class AtariNote {
     
     get getMicroNum() { return this.#microNum; }
     get getPitch() { return this.#pitch; }
-    get getFrequency() { return Math.round(this.#frequency * 10**AtariNote.precision)/10**AtariNote.precision; }
+    get getFrequency() { return Math.round(this.#frequency * 10**Options.freqPrecision)/10**Options.freqPrecision; }
     get getType() { return this.#type; }
 }
 
@@ -344,9 +316,11 @@ export class NotePair {
     #pianoNote = null;
     #atariNote = null;
     #cents = NaN;
+    #maxCents = 50;
 
-    static precision = 1;
+    static maxCents = 50;
 
+	// pianoNote must not be null; atariNote can be null
     constructor(pianoNote, atariNote) {
         this.#pianoNote = pianoNote;
         this.#atariNote = atariNote;
@@ -355,7 +329,15 @@ export class NotePair {
 
     get getPianoNote() { return this.#pianoNote; }
     get getAtariNote() { return this.#atariNote; }
-    get getCents() { return Math.round(this.#cents * 10**NotePair.precision) / 10**NotePair.precision; }
+
+	get getMicroNum() { return this.#pianoNote.getMicroNum; }
+
+    get getCents() {
+		if (this.#atariNote != null && !isNaN(this.#cents)) {
+			return Math.round(this.#cents * 10**Options.centPrecision) / 10**Options.centPrecision;
+		}
+		return NaN;
+	}
 
     set setPianoNote(pianoNote) {
         this.#pianoNote = pianoNote;
@@ -369,7 +351,7 @@ export class NotePair {
 
     #calculateCents() {
         if (this.#pianoNote != null && this.#atariNote != null) {
-            this.#cents = getCents(this.#pianoNote.getFrequency, this.#atariNote.getFrequency);
+            this.#cents = Music.getCents(this.#pianoNote.getFrequency, this.#atariNote.getFrequency);
         }
     }
 }
@@ -381,11 +363,17 @@ export class Tuning {
     #maxCents = 0.0;
     #minCents = 0.0;
 
-    static precision = Options.tuningPrecision;
-
-    constructor(notesTable) {
-        for (let [microNum, pair] of notesTable) {
+    constructor(notePairs) {
+        for (let [microNum, pair] of notePairs) {
             let pianoNote = pair.getPianoNote;
+
+/*
+if (pair.getAtariNote != null) {
+	console.log(`${microNum} a4(${Options.a4Freq}) piano(${pair.getPianoNote.getFrequency}) atari(${pair.getAtariNote.getFrequency})`);
+	console.log("  " + Music.getCents(pair.getPianoNote.getFrequency, pair.getAtariNote.getFrequency));
+}
+*/
+
             if (pair.getAtariNote != null && pianoNote.getMicroStep == 0) {
                 if (Math.abs(pair.getCents) <= Options.tuningSensitivity)  {
                     this.#totalTuned++;
@@ -404,35 +392,105 @@ export class Tuning {
 
     get getTunedNotes() { return this.#tunedNotes; }
     get getNumTuned() { return this.#totalTuned; }
-    get getTotalCents() { return Math.round(this.#totalCents * 10**Tuning.precision)/10**Tuning.precision; }
-    get getMaxCents() { return Math.round(this.#maxCents * 10**Tuning.precision)/10**Tuning.precision; }
-    get getMinCents() { return Math.round(this.#minCents * 10**Tuning.precision)/10**Tuning.precision; }
+    get getTotalCents() { return Math.round(this.#totalCents * 10**Options.centPrecision)/10**Options.centPrecision; }
+    get getMaxCents() { return Math.round(this.#maxCents * 10**Options.centPrecision)/10**Options.centPrecision; }
+    get getMinCents() { return Math.round(this.#minCents * 10**Options.centPrecision)/10**Options.centPrecision; }
 
     get getAvgCents() { 
         if (this.#totalTuned > 0)
-            return Math.round(this.#totalCents / this.#totalTuned * 10**Tuning.precision)/ 10 **Tuning.precision;
+            return Math.round(this.#totalCents / this.#totalTuned * 10**Options.centPrecision)/ 10 **Options.centPrecision;
         return 0.0;
     }
 
     get getCentRange() { 
         let diff = this.#maxCents - this.#minCents;
-        return Math.round(diff * 10**Tuning.precision) / 10**Tuning.precision;
+        return Math.round(diff * 10**Options.centPrecision) / 10**Options.centPrecision;
     }
 }
 
 export class NotesTable {
-    #containerElem = '';
-    #tableHtml = '<table class="tone-list"><tbody id="tone-data"></tbody></table>';
+    #notePairs = null;
+    #pianoNotes = null;
+    #atariNotes = null;
 
-    constructor(containerElem) {
-        this.#containerElem = containerElem;
+	// constructor(Notestable) to copy construct
+	// constructor(true): deep construct
+	// constructor(): shallow construct
+    constructor(arg1, arg2, arg3) {
+		if (arg1 === true) {
+			this.#pianoNotes = this.createPianoNotes();
+			this.#atariNotes = this.createAtariNotes();
+			this.#notePairs = this.createNotePairs();
+		} else if (typeof arg1 == 'NotesTable') {
+			this.#notePairs = arg1.getNotePairs();
+			this.#pianoNotes = arg2.getPianoNotes();
+			this.#atariNotes = arg3.getAtariNotes();
+		}
     }
 
-    render() {
-        updatePage();
+    get getNotePairs() { return this.#notePairs; }
+	get getPianoNotes() { return this.#pianoNotes; }
+	get getAtariNotes() { return this.#atariNotes; }
+
+    set setNotePairs(notePairs) {
+		this.#notePairs = notePairs;
+		this.#pianoNotes = notePairs.getPianoNotes()
+		this.#atariNotes = notePairs.getAtariNotes()
+	}
+	set setPianoNotes(pianoNotes) {
+		this.#pianoNotes = pianoNotes;
+		this.#notePairs = this.createNotePairs();
+	}
+	set setAtariNotes(atariNotes) {
+		this.#atariNotes = atariNotes;
+		this.#notePairs = this.createNotePairs();
+	}
+
+	rebuildNotePairs() {
+		this.#pianoNotes = this.createPianoNotes();
+		this.#atariNotes = this.createAtariNotes();
+		this.#notePairs = this.createNotePairs();
+	}
+
+	rebuildPianoNotes() {
+		this.#pianoNotes = this.createPianoNotes();
+		this.#notePairs = this.createNotePairs();
+	}
+
+	rebuildAtariNotes() {
+		this.#atariNotes = this.createAtariNotes();
+		this.#notePairs = this.createNotePairs();
+	}
+
+	createNotePairs() {
+		if (this.#pianoNotes == null)
+			this.#pianoNotes = this.createPianoNotes();
+
+		if (this.#atariNotes == null)
+			this.#atariNotes = this.createAtariNotes();
+
+		// load piano notes
+        let map = new Map();
+        for (let note of this.#pianoNotes) {
+            map.set(note.getMicroNum, new NotePair(note, null));
+        }
+
+		// match up with atari notes
+        for (let aNote of this.#atariNotes) {
+            let pair = map.get(aNote.getMicroNum);
+            if (pair == null) continue;
+
+			// assign only if non-existing or current note is better tuned
+			let newPair = new NotePair(pair.getPianoNote, aNote);
+            if( isNaN(pair.getCents) || Math.abs(newPair.getCents) < Math.abs(pair.getCents) ) {
+                map.set(newPair.getMicroNum, newPair);
+            }
+        }
+
+        return map;
     }
 
-    static getPianoNotes() {
+    createPianoNotes() {
         let ary = new Array();
         let octave = Options.firstPianoOctave;
         let mid = Math.floor(Options.numMicroTones/2);
@@ -440,14 +498,14 @@ export class NotesTable {
 
         for (let keyNum = Options.firstPianoKey; keyNum <= Options.lastPianoKey; keyNum++) {
             let key = noteList[keyNum % 12].note;
-            let keyFreq = getKeyFrequency(Options.a4Freq, keyNum - A4_KEY);
+            let keyFreq = Music.getKeyFrequency(Options.a4Freq, keyNum - A4_KEY);
 
             if (key == "C")
                 octave++
 
             for (let microStep = 0-mid; microStep < (Options.numMicroTones-mid); microStep++) {
-                let microFreq = getKeyFrequency(Options.a4Freq, keyNum - A4_KEY + (microStep * step));
-                let microNum = Math.round(getKeyNum(Options.a4Freq, microFreq) * Options.numMicroTones);
+                let microFreq = Music.getKeyFrequency(Options.a4Freq, keyNum - A4_KEY + (microStep * step));
+                let microNum = Math.round(Music.getKeyNum(Options.a4Freq, microFreq) * Options.numMicroTones);
 
                 // don't store out of bound keys
                 if (octave == 0 && microStep < 0)
@@ -459,13 +517,13 @@ export class NotesTable {
                 let flatKey = '';
                 let flatFreq = 0.0;
                 let sharpKey = '';
-                  let sharpFreq = 0.0;
+                let sharpFreq = 0.0;
 
                 if (microStep == 0) {
                     flatKey = flatLetters[key] ? flatLetters[key] : '';
-                    flatFreq = getKeyFrequency(Options.a4Freq, keyNum - 1 - A4_KEY);
+                    flatFreq = Music.getKeyFrequency(Options.a4Freq, keyNum - 1 - A4_KEY);
                     sharpKey = sharpLetters[key] ? sharpLetters[key] : '';
-                      sharpFreq = getKeyFrequency(Options.a4Freq, keyNum + 1 - A4_KEY);
+                      sharpFreq = Music.getKeyFrequency(Options.a4Freq, keyNum + 1 - A4_KEY);
 
                     if (keyNum == KEY_FIRST) {
                         flatKey = '';
@@ -495,90 +553,25 @@ export class NotesTable {
 
         return ary;
     }
-    /*
-    static getPianoNotes(A4Freq, numMicroTones) {
-        let ary = new Array();
-        let octave = OCTAVE_FIRST;
-        let mid = Math.floor(numMicroTones/2);
-        let step = numMicroTones > 0 ? 1/numMicroTones : 0;
 
-        for (let keyNum = KEY_FIRST; keyNum <= KEY_LAST; keyNum++) {
-            let key = noteLetters[keyNum % 12];
-            let keyFreq = getKeyFrequency(A4Freq, keyNum - A4_KEY);
-
-            if (key == "C")
-                octave++
-
-            for (let microStep = 0-mid; microStep < (numMicroTones-mid); microStep++) {
-                let microFreq = getKeyFrequency(A4Freq, keyNum - A4_KEY + (microStep * step));
-                let microNum = Math.round(getKeyNum(A4Freq, microFreq) * numMicroTones);
-
-                // don't store out of bound keys
-                if (octave == 0 && microStep < 0)
-                    continue;
-
-                if (octave == 8 && microStep > 0)
-                    continue;
-
-                let flatKey = '';
-                let flatFreq = 0.0;
-                let sharpKey = '';
-                  let sharpFreq = 0.0;
-
-                if (microStep == 0) {
-                    flatKey = flatLetters[key] ? flatLetters[key] : '';
-                    flatFreq = getKeyFrequency(A4Freq, keyNum - 1 - A4_KEY);
-                    sharpKey = sharpLetters[key] ? sharpLetters[key] : '';
-                      sharpFreq = getKeyFrequency(A4Freq, keyNum + 1 - A4_KEY);
-
-                    if (keyNum == KEY_FIRST) {
-                        flatKey = '';
-                        flatFreq = 0.0;
-                    }
-
-                    if (keyNum == KEY_LAST) {
-                        sharpKey = '';
-                        sharpFreq = 0.0;
-                    }
-                }
-
-                ary.push(new PianoNote(
-                    octave,
-                    key,
-                    microFreq,
-                    flatKey,
-                    flatFreq,
-                    sharpKey,
-                    sharpFreq,
-                    keyNum,
-                    microNum,
-                    microStep,
-                ));
-            }
-        }
-
-        return ary;
-    }
-    */
-
-    static getAtariNotes(A4Freq, cfg, atariTone, numMicroTones) {
+    createAtariNotes() {
         let ary = new Array();
 
-        if (atariTone in pixel_tones) {
-            let baseFreq = cfg.vid_freq / 114 / pitch_divisors[atariTone];
+        if (Options.atariPitch in pixel_tones) {
+            let baseFreq = Options.videoCfg.vid_freq / 114 / pitch_divisors[Options.atariPitch];
             for (let i = 32; i > 0; i--) {
                 let currFreq = baseFreq / i;
-                let keyNum = Math.round(getKeyNum(A4Freq, currFreq));
-                let microNum = Math.round(getKeyNum(A4Freq, currFreq)*numMicroTones);
+                let keyNum = Math.round(Music.getKeyNum(Options.a4Freq, currFreq));
+                let microNum = Math.round(Music.getKeyNum(Options.a4Freq, currFreq)*Options.numMicroTones);
 
                 ary.push(new AtariNote(microNum, 'Color Clock', i-1, currFreq));
             }
-        } else if (atariTone in cpu_tones) {
-            let baseFreq = cfg['cpu_freq'] / 114 / pitch_divisors[atariTone];
+        } else if (Options.atariPitch in cpu_tones) {
+            let baseFreq = Options.videoCfg['cpu_freq'] / 114 / pitch_divisors[Options.atariPitch];
             for (let i = 32; i > 0; i--) {
                 let currFreq = baseFreq / i;
-                let keyNum = Math.round(getKeyNum(A4Freq, currFreq));
-                let microNum = Math.round(getKeyNum(A4Freq, currFreq) * numMicroTones);
+                let keyNum = Math.round(Music.getKeyNum(Options.a4Freq, currFreq));
+                let microNum = Math.round(Music.getKeyNum(Options.a4Freq, currFreq) * Options.numMicroTones);
 
                 ary.push(new AtariNote(microNum, 'CPU Clock', i-1, currFreq));
             }
@@ -586,371 +579,552 @@ export class NotesTable {
 
         return ary;
     }
+}
 
-    static getNotePairs() {
-        let pianoNotes = NotesTable.getPianoNotes(Options.a4Freq, Options.numMicroTones);
-        let atariNotes = NotesTable.getAtariNotes(Options.a4Freq, Options.videoCfg, Options.atariPitch, Options.numMicroTones);
+export class Page {
+    static notesTable = null;
+    static tableId = '';
+    static canvasId = '';
 
-        let notesTable = new Map();
+	// input field => field specific updator
+	static changeHandlers = null;
+	static rangeHandlers = null;
+	static rangeInputs = null;
+	static reverseRangeInputs = null;
 
-        for (let note of pianoNotes) {
-            notesTable.set(note.getMicroNum, new NotePair(note, null));
+    //static tableHtml = '<table class="tone-list"><tbody id="tone-data"></tbody></table>';
+
+    static initialize(notesTable, tableContainerId, canvasContainerId) {
+        Page.notesTable = notesTable;
+        Page.tableId = tableContainerId;
+        Page.canvasId = canvasContainerId;
+
+		Page.changeHandlers = {
+    		'A4FreqId': (e) => {
+				document.getElementById('A4FreqRangeId').value = e.target.value;
+			},
+    		'TuningSensitivityId': (e) => {
+				document.getElementById('TuningSensitivityRangeId').value = e.target.value;
+			},
+    		'TuningGradientId': null,
+    		//'TuningId': null,
+    		'TransposeId': (e) => {
+				document.getElementById('TransposeRangeId').value = e.target.value;
+			},
+    		'NumMicroTonesId': (e) => {
+                if(e.target.id == 'NumMicroTonesId' && parseInt(e.target.value) < 1)
+                    e.target.value = 1;
+				document.getElementById('NumMicroTonesRangeId').value = e.target.value;
+			},
+    		'AtariPitchId': null,
+    		'VideoFormatId': null,
+    		'PrintBlackKeysId': null,
+    		'PrintGeometryId': null,
+    		'PrintFrequencyId': null,
+    		//'ExpandPianoId': null,
+    		'ShrinkPianoId': null,
+    		'JumpToFirstId': null,
+    		//'InnerJoinId': null,
+    		//'SoundOnId': null
+    		'A4FreqRangeId': (e) => {
+				document.getElementById('A4FreqId').value = e.target.value;
+			},
+    		'TuningSensitivityRangeId': (e) => {
+				document.getElementById('TuningSensitivityId').value = e.target.value;
+			},
+    		'TransposeRangeId': (e) => {
+				document.getElementById('TransposeId').value = e.target.value;
+			},
+    		'NumMicroTonesRangeId': (e) => {
+				document.getElementById('NumMicroTonesId').value = e.target.value;
+			}
+		}
+
+		Page.rebuildHandlers = {
+    		'A4FreqId': 				(e) => { Page.notesTable.rebuildNotePairs() },
+    		'TuningSensitivityId': 		null,
+    		'TuningGradientId': 		null,
+    		//'TuningId': 				(e) => { Page.notesTable.rebuildPianoNotes() },
+    		'TransposeId': 				(e) => { Page.notesTable.rebuildNotePairs() },
+    		'NumMicroTonesId': 			(e) => { Page.notesTable.rebuildPianoNotes() },
+    		'AtariPitchId': 			(e) => { Page.notesTable.rebuildAtariNotes() },
+    		'VideoFormatId': 			(e) => { Page.notesTable.rebuildAtariNotes() },
+    		'PrintBlackKeysId': 		null,
+    		'PrintGeometryId': 			null,
+    		'PrintFrequencyId': 		null,
+    		//'ExpandPianoId':	 		(e) => { Page.notesTable.rebuildPianoNotes() },
+    		'ShrinkPianoId': 			null,
+    		'JumpToFirstId': 			null,
+    		//'InnerJoinId': 			null,
+    		//'SoundOnId': 				null,
+    		'A4FreqRangeId':  			(e) => { Page.notesTable.rebuildNotePairs() },
+    		'TuningSensitivityRangeId': null,
+    		'TransposeRangeId': 		(e) => { Page.notesTable.rebuildNotePairs() },
+    		'NumMicroTonesRangeId': 	(e) => { Page.notesTable.rebuildPianoNotes() }
+		}
+
+        // on change events
+        for (let id in Page.changeHandlers) {
+            document.getElementById(id).addEventListener('change', (e) => {
+				if (Page.changeHandlers[id] != null)
+					Page.changeHandlers[id](e);
+
+                Options.readFromForm();
+                Options.saveToStorage();
+
+				if (Page.rebuildHandlers[id] != null)
+					Page.rebuildHandlers[id](e);
+
+                Page.render();
+            });
         }
 
-        for (let atariNote of atariNotes) {
-            let pair = notesTable.get(atariNote.getMicroNum);
-            if (pair == null)
-                continue;
+        // on click reset event
+        document.getElementById('ResetId').addEventListener('click', (evt) => {
+            Options.loadDefaults();
+            Options.writeToForm();
+            Options.saveToStorage();
+            Page.notesTable.rebuildNotePairs();
+			Page.render();
+        });
+    }
 
-            let newPair = new NotePair(pair.getPianoNote, atariNote);
+	static render() {
+		if (this.tableId != '')
+			Page.renderTable();
+		if (this.canvasId != '')
+			Page.renderGeometry();
 
-            if (pair.getAtariNote == null || (Math.abs(newPair.getCents) < Math.abs(pair.getCents)) ) {
-                notesTable.set(atariNote.getMicroNum, newPair);
+        Page.renderDistribution();
+	}
+
+    static renderTable() {
+        tuning = new Tuning(Page.notesTable.getNotePairs);
+
+        let outHtml = '<table class="tone-list"><tbody id="tone-data"></tbody></table>';
+        document.getElementById(Page.tableId).innerHTML = outHtml;
+
+        outHtml = `<tr>
+            <th title="Piano notes relative to the A4 key frequency.">Piano</th>
+            <th class="spacer"></th>
+            <th class="freq" title="Piano Frequency">P. Freq</th>
+            <th title="Atari pitch (AUDC)">Atari</th>
+            <th class="freq" title="Atari Frequency">A. Freq</th>
+            <th title="Tuning difference between the piano reference note and the Atari note.">Cents</th>
+            <th title="Numeric key position on the piano">Key#</th>
+            <th title="Numeric position if the piano had micro tones.">Micro#</th>
+            </tr>`;
+
+        let firstAtariNote = 0;
+        let lastAtariNote = 0;
+        for (let [microNum, pair] of Page.notesTable.getNotePairs) {
+            if(pair.getAtariNote != null) {
+                if (firstAtariNote == 0)
+                    firstAtariNote = microNum;
+                lastAtariNote = microNum;
             }
         }
 
-        return notesTable;
+        for (let [microNum, pair] of Page.notesTable.getNotePairs) {
+            let note = pair.getPianoNote;
+            let atari = pair.getAtariNote;
+
+            if (Options.shrinkPiano && firstAtariNote > 0 && lastAtariNote > 0) {
+                if (microNum < firstAtariNote || microNum > lastAtariNote)
+                    continue;
+            }
+
+            if (!note.getIsBlackKey || (note.getIsBlackKey && Options.printBlackKeys)) {
+                outHtml += Page.buildRowHtml(pair);
+            }
+
+        }
+
+        let node = document.getElementById('tone-data');
+        node.innerHTML = outHtml;
+
+        Page.updateBlackKeys();
+        Page.updateKeyColors();
+        Page.alterTable();
+
+        outHtml = Page.buildMajorChordsHtml(Page.notesTable.getNotePairs);
+        node = document.getElementById('ChordsListId');
+        node.innerHTML = outHtml;
+
+        // info
+        outHtml = Math.round(Options.videoCfg.vid_freq).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "/" + Math.round(Options.videoCfg.fps);
+        $("#VidFreqId").html(`${outHtml} Hz`);
+        $("#TotalTunedId").html(tuning.getNumTuned);
+        $("#QualityId").html(tuning.getAvgCents);
+        $("#MaxRangeId").html(`[${tuning.getMinCents} to ${tuning.getMaxCents}] &Delta;${tuning.getCentRange}`);
+        
+        outHtml = '';
+        let octave = NaN;
+        let octaveHtml = '';
+        for (let n of tuning.getTunedNotes) {
+            if(isNaN(octave)) {
+                octaveHtml += '<span>' + n.getKey + n.getOctave;
+                octave = n.getOctave;
+            } else if(octave != n.getOctave) {
+                outHtml += octaveHtml + '</span><br>';
+                octaveHtml = '<span>' + n.getKey + n.getOctave;
+                octave = n.getOctave;
+            } else {
+                octaveHtml += ", " + n.getKey + n.getOctave;
+            }
+        }
+        if (!isNaN(octave) && octaveHtml != '')
+            outHtml += octaveHtml + '</span><br>';
+
+        $("#NotesListId").html(outHtml);
+
+        if (Options.jumpToFirst && firstAtariNote > 0) {
+            $([document.documentElement, document.body]).animate({
+                scrollTop: ($(`.micronum-${firstAtariNote}`).offset().top - 20)
+            }, 2000)
+        }
+
+        Options.saveToStorage();
     }
-}
 
-for (let e of changeInputs) {
-    document.getElementById(e).addEventListener('change', (evt) => {
-        if(evt.target.id == 'NumMicroTonesId' && parseInt(evt.target.value) < 1)
-            evt.target.value = 1;
-            
-        if (reverseRangeInputs.has(evt.target.id))
-            document.getElementById(reverseRangeInputs.get(evt.target.id)).value = evt.target.value;
+    static renderGeometry(width, height) {
+        width = (width == null || width <= 0) ? 400 : width;
+        height = (height == null || height <= 0) ? 400 : height;
 
-        updatePage();
-    });
-}
+        let container = document.getElementById(Page.canvasId);
+        container.innerHTML = '<canvas id="GeometryId" width="400" height="400"></canvas>';
+        let canvas = document.getElementById('GeometryId');
 
-for (let [src, dst] of rangeInputs) {
-    document.getElementById(src).addEventListener('change', (evt) => {
-        if (rangeInputs.has(evt.target.id))
-            document.getElementById(rangeInputs.get(evt.target.id)).value = evt.target.value;
-        updatePage();
-    });
-}
-
-document.getElementById('ResetId').addEventListener('click', (evt) => {
-    Options.loadDefaults();
-    updatePage();
-});
-
-export function updatePage() {
-    Options.refresh();
-    notesTable = NotesTable.getNotePairs();
-    tuning = new Tuning(notesTable);
-
-    let outHtml = `<tr>
-<th title="Piano notes relative to the A4 key frequency.">Piano</th>
-<th class="spacer"></th>
-<th class="freq" title="Piano Frequency">P. Freq</th>
-<th title="Atari pitch (AUDC)">Atari</th>
-<th class="freq" title="Atari Frequency">A. Freq</th>
-<th title="Tuning difference between the piano reference note and the Atari note.">Cents</th>
-<th title="Numeric key position on the piano">Key#</th>
-<th title="Numeric position if the piano had micro tones.">Micro#</th>
-</tr>`;
-
-    let firstAtariNote = 0;
-    let lastAtariNote = 0;
-    for (let [microNum, pair] of notesTable) {
-        if(pair.getAtariNote != null) {
-            if (firstAtariNote == 0)
-                firstAtariNote = microNum;
-            lastAtariNote = microNum;
+        if (Options.printGeometry) {
+            const notes = noteList.map(elem => elem.note);
+            let carousel = new Carousel(canvas, notes, 'bold 14pt sans-serif');
+            canvas.style.display = 'block';
+        } else {
+            canvas.style.display = 'none';
         }
     }
 
-    for (let [microNum, pair] of notesTable) {
+    static renderDistribution() {
+        if (Page.notesTable.getNotePairs.size == 0)
+            return;
+        if (Page.notesTable.getAtariNotes == null)
+            return;
+        if (Page.notesTable.getAtariNotes.length == 0)
+            return;
+
+        let canvas = document.getElementById('DistributionId');
+        let ctx = canvas.getContext("2d");
+        ctx.fillStyle = "white";
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = "1px";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "black";
+        ctx.strokeStyle = "black";
+        ctx.save();
+
+        let yScale = canvas.height / NotePair.maxCents;
+        let w = Math.floor(canvas.width / Page.notesTable.getAtariNotes.length);
+        let x = 0;
+        let y = canvas.height;
+        let colorScale = 128 / 32;
+
+        let pivot = new Array(32);
+        for(let [microNum, pair] of Page.notesTable.getNotePairs) {
+            if (isNaN(pair.getCents)) continue;
+            let pitch = pair.getAtariNote.getPitch;
+            pivot[pitch] = pair.getCents;
+        }
+
+        for (let pitch = pivot.length-1; pitch >= 0; pitch--) {
+            let color = 128 - (pitch * colorScale);
+
+            if(pivot[pitch]) {
+                let h = Math.ceil(Math.abs(pivot[pitch] * yScale));
+                ctx.fillStyle = `rgb(${color},${color},${color})`;
+                ctx.fillRect(x, y, w, -h);
+            }
+
+            x += w;
+        }
+    }
+
+    static buildRowHtml(pair) {
+        let numMicroTones = Options.numMicroTones; //parseInt(document.getElementById('NumMicroTonesId').value);
+
         let note = pair.getPianoNote;
         let atari = pair.getAtariNote;
 
-        if (Options.shrinkPiano && firstAtariNote > 0 && lastAtariNote > 0) {
-            if (microNum < firstAtariNote || microNum > lastAtariNote)
-                continue;
+        let key = `${note.getKey}<small>${note.getOctave}</small>`;
+        key = key.replace(/#/g, "&#x266f;");
+        key = key.replace(/b/g, "&#x266d;");
+
+        let flatKey = note.getFlatKey;
+        let sharpKey = note.getSharpKey;
+        let blackKey = '';
+        let blackFreq = '';
+
+        if (note.getIsBlackKey) {
+            blackKey = `<div>${sharpKey} / ${flatKey}</div>`;
+            blackFreq = `<div>${note.getSharpFrequency} / ${note.getFlatFrequency} Hz</div>`;
         }
 
-        if (!note.getIsBlackKey || (note.getIsBlackKey && Options.printBlackKeys)) {
-            outHtml += buildRowHtml(pair);
+        blackKey = blackKey.replace(/#/g, "&#x266f;");
+        blackKey = blackKey.replace(/b/g, "&#x266d;");
+
+        let step = numMicroTones <= 1 ? '' : ` <span class="step">[${note.getMicroStep}]</span>`;
+
+        let color = 128;
+        let blue = 192;
+        
+        if (atari != null) {
+            color = Math.round(255 - (Math.abs(pair.getCents)/Options.tuningSensitivity*128));
+            blue = Math.round(255 - (Math.abs(pair.getCents)/Options.tuningSensititivy*64));
         }
 
-    }
+        let clas = `micronum-${note.getMicroNum}`;
+        clas += (note.getMicroStep == 0) ? ' pianonote"' : ' micronote';
 
-    let node = document.getElementById('tone-data');
-    $(node).html(outHtml);
+        let bkId = (note.getMicroStep == 0) ? `id="blackkey-${note.getKeyNum}"` : '';
 
-    updateBlackKeys();
-    updateKeyColors();
-    alterTable();
+        let html = `
+    <tr class="${clas}">
+    <td>${key}<div ${bkId}></div></td>
+    <td class="spacer"></td>
+    <td class="freq">${note.getFrequency} Hz</td>`;
 
-    outHtml = buildMajorChordsHtml(notesTable);
-    node = document.getElementById('ChordsListId');
-    $(node).html(outHtml);
+        if(atari != null) {
+            let atariFreq = pair.getAtariNote.getFrequency + " Hz";
+            let atariPitch = pair.getAtariNote.getPitch;
+            let cents = pair.getCents;
 
-    // info
-    outHtml = Math.round(Options.videoCfg.vid_freq).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "/" + Math.round(Options.videoCfg.fps);
-    $("#VidFreqId").html(`${outHtml} Hz`);
-    $("#TotalTunedId").html(tuning.getNumTuned);
-    $("#QualityId").html(tuning.getAvgCents);
-    $("#MaxRangeId").html(`[${tuning.getMinCents} to ${tuning.getMaxCents}] &Delta;${tuning.getCentRange}`);
-    
-    outHtml = '';
-    let octave = NaN;
-    let octaveHtml = '';
-    for (let n of tuning.getTunedNotes) {
-        if(isNaN(octave)) {
-            octaveHtml += '<span>' + n.getKey + n.getOctave;
-            octave = n.getOctave;
-        } else if(octave != n.getOctave) {
-            outHtml += octaveHtml + '</span><br>';
-            octaveHtml = '<span>' + n.getKey + n.getOctave;
-            octave = n.getOctave;
+            html += `
+    <td>${atari.getPitch}</td>
+    <td class="freq">${atari.getFrequency} Hz</td>
+    <td>${pair.getCents}</td>`;
         } else {
-            octaveHtml += ", " + n.getKey + n.getOctave;
+            html += '<td></td><td class="freq"></td><td></td>';
         }
-    }
-    if (!isNaN(octave) && octaveHtml != '')
-        outHtml += octaveHtml + '</span><br>';
 
-    $("#NotesListId").html(outHtml);
-
-    let canvas = document.getElementById("GeometryId");
-    if (Options.printGeometry) {
-        const notes = noteList.map(elem => elem.note);
-        let carousel = new Carousel(canvas, notes, 'bold 14pt sans-serif');
-        canvas.style.display = 'block';
-    } else {
-        canvas.style.display = 'none';
+        html += `<td>${note.getKeyNum} ${step}</td><td>${note.getMicroNum}</td></tr>`;
+        return html;
     }
 
-    if (Options.jumpToFirst && firstAtariNote > 0) {
-        $([document.documentElement, document.body]).animate({
-            scrollTop: ($(`.micronum-${firstAtariNote}`).offset().top - 20)
-        }, 2000)
-    }
+    static buildMajorChordsHtml(notesTable) {
+        /*
+        let html = '';
+        let tuned = new Set(tunedNotes);
+        let intersection = new Set(Array.from(tuned).filter(x => s.has(x)));
 
-    Options.save();
-}
+        let currNotes = [];
+        let currLetters = [];
 
-function alterTable() {
-    if(Options.printFrequency) {
-        $('th.freq').show();
-        $('td.freq').show();
-    } else {
-        $('th.freq').hide();
-        $('td.freq').hide();
-    }
-}
+        for (let note of tunedNotes) {
+            let letter = note.match(/^[A-G#?]/);
+            currLetters.push(letter);
+            //currLetters.push(note);
 
-function buildRowHtml(pair) {
-    let numMicroTones = Options.numMicroTones; //parseInt(document.getElementById('NumMicroTonesId').value);
+            if (currNotes.length > 2) {
+                let testChord = currNotes.join("");
 
-    let note = pair.getPianoNote;
-    let atari = pair.getAtariNote;
+                for (let ch of majorChords) {
+                    if (ch.indexOf(testChord) >= 0) {
+                        html += ` (<b>${ch}</b>)`;
+                    }
+                }
 
-    let key = `${note.getKey}<small>${note.getOctave}</small>`;
-    key = key.replace(/#/g, "&#x266f;");
-    key = key.replace(/b/g, "&#x266d;");
-
-    let flatKey = note.getFlatKey;
-    let sharpKey = note.getSharpKey;
-    let blackKey = '';
-    let blackFreq = '';
-
-    /*
-    if (flatKey && sharpKey) {
-        blackKey = `<div>${sharpKey} / ${flatKey}</div>`;
-        blackFreq = `<div>${note.getFlatFrequency} / ${note.getSharpFrequency} Hz</div>`;
-    } else if (sharpKey) {
-        blackKey = `<div>${sharpKey}</div>`;
-        blackFreq = `<div>${note.getSharpFrequency} Hz</div>`;
-    } else if (flatKey) {
-        blackKey = flatKey;
-        blackFreq = `${note.getFlatFrequency} Hz`;
-    }
-    */
-
-    if (note.getIsBlackKey) {
-        blackKey = `<div>${sharpKey} / ${flatKey}</div>`;
-        blackFreq = `<div>${note.getSharpFrequency} / ${note.getFlatFrequency} Hz</div>`;
-    }
-
-    blackKey = blackKey.replace(/#/g, "&#x266f;");
-    blackKey = blackKey.replace(/b/g, "&#x266d;");
-
-    let step = numMicroTones <= 1 ? '' : ` <span class="step">[${note.getMicroStep}]</span>`;
-
-    let color = 128;
-    let blue = 192;
-    
-    if (atari != null) {
-        color = Math.round(255 - (Math.abs(pair.getCents)/Options.tuningSensitivity*128));
-        blue = Math.round(255 - (Math.abs(pair.getCents)/Options.tuningSensititivy*64));
-    }
-
-    let clas = `micronum-${note.getMicroNum}`;
-    clas += (note.getMicroStep == 0) ? ' pianonote"' : ' micronote';
-
-    let bkId = (note.getMicroStep == 0) ? `id="blackkey-${note.getKeyNum}"` : '';
-
-    let html = `
-<tr class="${clas}">
-<td>${key}<div ${bkId}></div></td>
-<td class="spacer"></td>
-<td class="freq">${note.getFrequency} Hz</td>`;
-
-    if(atari != null) {
-        let atariFreq = pair.getAtariNote.getFrequency + " Hz";
-        let atariPitch = pair.getAtariNote.getPitch;
-        let cents = pair.getCents;
-
-        html += `
-<td>${atari.getPitch}</td>
-<td class="freq">${atari.getFrequency} Hz</td>
-<td>${pair.getCents}</td>`;
-    } else {
-        html += '<td></td><td class="freq"></td><td></td>';
-    }
-
-    html += `<td>${note.getKeyNum} ${step}</td><td>${note.getMicroNum}</td></tr>`;
-    return html;
-}
-
-function updateBlackKeys() {
-    let prevNote = null;
-    let i = 0;
-    for (let [microNum, pair] of notesTable) {
-        let currNote = pair.getPianoNote;
-
-        if (i++ > 0 && currNote.getMicroStep == 0 && currNote.getFlatKey.indexOf('b') >= 0) {
-            let elem = document.getElementById(`blackkey-${currNote.getKeyNum}`);
-            if(elem != null) {
-                let html = currNote.getFlatKey;
-                if (prevNote != null)
-                    html = `${prevNote.getSharpKey}/${html}`;
-                html += `<small>${prevNote.getOctave}</small>`;
-
-                elem.innerHTML = `${html}`;
+                currNotes.shift();
             }
         }
 
-        if (currNote.getMicroStep == 0 && currNote.getSharpKey.indexOf('#') >= 0)
-            prevNote = currNote;
+        return html;
+        */
+        return '';
     }
-}
 
-function updateKeyColors() {
-    for (let [microNum, pair] of notesTable) {
-        let color = 128;
-        let blue = 192;
-        let colorRange = 255-color;
-        let blueRange= 255-blue;
-
-        if (pair.getAtariNote != null) {
-            let cents = pair.getCents;
-            let colorRatio = Math.abs(cents) / Options.tuningSensitivity;
-            let blueRatio = Math.abs(cents) / Options.tuningSensitivity;
-            color = Math.round(255 - Math.min(128 * colorRatio, 128));
-            blue  = Math.round(255 - Math.min(64 * blueRatio, 64));
-        }
-
-        let e = document.getElementsByClassName(`micronum-${microNum}`)[0];
-        if (e) {
-            e.style.backgroundColor = `rgb(${color},${color},${blue})`;
+    static alterTable() {
+        if(Options.printFrequency) {
+            $('th.freq').show();
+            $('td.freq').show();
+        } else {
+            $('th.freq').hide();
+            $('td.freq').hide();
         }
     }
-}
 
-function shrinkTable() {
-/*
-    let firstNote = null;
-    let lastNote = null;
+    static updateBlackKeys() {
+        let prevNote = null;
+        let i = 0;
+        for (let [microNum, pair] of Page.notesTable.getNotePairs) {
+            let currNote = pair.getPianoNote;
 
-    for (let [microNum, pair] of notesTable) {
-        let curr = pair.getAtariNote;
-        if(firstNote == null && curr != null)
-            firstNote = curr;
-        if(curr != null)
-            lastNote = curr;
-    }
+            if (i++ > 0 && currNote.getMicroStep == 0 && currNote.getFlatKey.indexOf('b') >= 0) {
+                let elem = document.getElementById(`blackkey-${currNote.getKeyNum}`);
+                if(elem != null) {
+                    let html = currNote.getFlatKey;
+                    if (prevNote != null)
+                        html = `${prevNote.getSharpKey}/${html}`;
+                    html += `<small>${prevNote.getOctave}</small>`;
 
-    if (firstNote != null && lastNote != null) {
-    for (let [microNum, pair] of notesTable) {
-    }
-*/
-}
-
-function buildMajorChordsHtml(notesTable) {
-    /*
-    let html = '';
-    let tuned = new Set(tunedNotes);
-    let intersection = new Set(Array.from(tuned).filter(x => s.has(x)));
-
-    let currNotes = [];
-    let currLetters = [];
-
-    for (let note of tunedNotes) {
-        let letter = note.match(/^[A-G#?]/);
-        currLetters.push(letter);
-        //currLetters.push(note);
-
-        if (currNotes.length > 2) {
-            let testChord = currNotes.join("");
-
-            for (let ch of majorChords) {
-                if (ch.indexOf(testChord) >= 0) {
-                    html += ` (<b>${ch}</b>)`;
+                    elem.innerHTML = `${html}`;
                 }
             }
 
-            currNotes.shift();
+            if (currNote.getMicroStep == 0 && currNote.getSharpKey.indexOf('#') >= 0)
+                prevNote = currNote;
         }
     }
 
-    return html;
+    static updateKeyColors() {
+        let color = 128;		// out of tune color
+        let blue = 192;
+        let colorRange = 255-color;
+        let blueRange = 255-blue;
+		let offColor = `rgb(${color},${color},${blue})`;
+		let onColor = '#fff';
+
+		if (Options.tuningGradient) {
+        	for (let [microNum, pair] of Page.notesTable.getNotePairs) {
+            	let color = 128;
+            	let blue = 192;
+            	let colorRange = 255-color;
+            	let blueRange= 255-blue;
+
+            	if (pair.getAtariNote != null) {
+                	let cents = pair.getCents;
+                	let colorRatio = Math.abs(cents) / Options.tuningSensitivity;
+                	let blueRatio = Math.abs(cents) / Options.tuningSensitivity;
+                	color = Math.round(255 - Math.min(128 * colorRatio, 128));
+//console.log(`cents=${cents} sens=${Options.tuningSensitivity} cRatio=${colorRatio} bRatio=${blueRatio}`);
+                	blue  = Math.round(255 - Math.min(64 * blueRatio, 64));
+            	}
+
+            	let e = document.getElementsByClassName(`micronum-${microNum}`)[0];
+            	if (e) {
+                	e.style.backgroundColor = `rgb(${color},${color},${blue})`;
+            	}
+        	}
+		} else {
+        	for (let [microNum, pair] of Page.notesTable.getNotePairs) {
+				let css = offColor;
+            	if (pair.getAtariNote != null) {
+                	if (Math.abs(pair.getCents) < Options.tuningSensitivity) {
+						css = onColor;
+					}
+            	}
+
+            	let e = document.getElementsByClassName(`micronum-${microNum}`)[0];
+            	if (e) {
+                	e.style.backgroundColor = css;
+            	}
+        	}
+		}
+    }
+
+/*
+    static updateKeyColors() {
+        for (let [microNum, pair] of Page.notesTable.getNotePairs) {
+            let color = 128;
+            let blue = 192;
+            let colorRange = 255-color;
+            let blueRange= 255-blue;
+
+            if (pair.getAtariNote != null) {
+                let cents = pair.getCents;
+                let colorRatio = Math.abs(cents) / Options.tuningSensitivity;
+                let blueRatio = Math.abs(cents) / Options.tuningSensitivity;
+                color = Math.round(255 - Math.min(128 * colorRatio, 128));
+//console.log(`cents=${cents} sens=${Options.tuningSensitivity} cRatio=${colorRatio} bRatio=${blueRatio}`);
+                blue  = Math.round(255 - Math.min(64 * blueRatio, 64));
+            }
+
+            let e = document.getElementsByClassName(`micronum-${microNum}`)[0];
+            if (e) {
+                e.style.backgroundColor = `rgb(${color},${color},${blue})`;
+            }
+        }
+    }
+*/
+
+    static shrinkTable() {
+    /*
+        let firstNote = null;
+        let lastNote = null;
+
+        for (let [microNum, pair] of notesTable.getNotePairs) {
+            let curr = pair.getAtariNote;
+            if(firstNote == null && curr != null)
+                firstNote = curr;
+            if(curr != null)
+                lastNote = curr;
+        }
+
+        if (firstNote != null && lastNote != null) {
+        for (let [microNum, pair] of notesTable.getNotePairs) {
+        }
     */
-    return '';
+    }
 }
 
-function setOnly(obj, val) {
-    return obj == null || obj === '' || obj === false || typeof obj === 'undefined' ? '' : val;
-}
+// maps ASCII coded music symbol to HTML entity
+const MusicEntities = {
+    'b': '&flat;',  	// music flat sign
+    'n': '&natur;',     // music natural sign
+    '#': '&sharp;',     // music sharp sign
+    '##': '&#119082;',  // musical symbol double sharp
+    'bb': '&#119083;',  // musical symbol double flat
+    'b^': '&#119084;',  // musical symbol flat up
+    'bv': '&#119085;',  // musical symbol flat down
+    'n^': '&#119086;',  // musical symbol natural up
+    'nv': '&#119087;',  // musical symbol natural down
+    '#^': '&#119088;',  // musical symbol sharp up
+    '#v': '&#119089;',  // musical symbol sharp down
+    '#4': '&#119090;',  // musical symbol quarter tone sharp
+    'b4': '&#119091;'   // musical symbol quarter tone flat
+};
 
-export function getKeyFrequency(referenceFreq, semiDistance) {
-    return referenceFreq * (2 ** (semiDistance/12));
-}
+export class Music {
+	static entity(n) { return MusicEntitities[n] ? MusicEntities[n] : ''; }
 
-export function getKeyNum(referenceFreq, freq) {
-    return getNumKeysBetween(referenceFreq, freq) + 49;
-}
+    static getKeyFrequency(referenceFreq, semiDistance) {
+        return referenceFreq * (2 ** (semiDistance/12));
+    }
 
-export function getNumKeysBetween(referenceFreq, freq) {
-    return 12 * Math.log2(freq/referenceFreq);
-}
+    static getKeyNum(referenceFreq, freq) {
+        return Music.getNumKeysBetween(referenceFreq, freq) + 49;
+    }
 
-export function getCents(referenceFreq, freq) {
-    if(referenceFreq == 0)
-        return NaN;
+    static getNumKeysBetween(referenceFreq, freq) {
+        return 12 * Math.log2(freq/referenceFreq);
+    }
 
-    return Math.log2(freq/referenceFreq) * 1200;
-}
+    static getCents(referenceFreq, freq) {
+        if(referenceFreq == 0)
+            return NaN;
 
-export function getTotalNumKeys() {
-    return KEY_LAST-KEY_FIRST+1;
-}
+        return Math.log2(freq/referenceFreq) * 1200;
+    }
 
-export function getMinKeyFreq(referenceFreq) {
-    return getKeyFrequency(referenceFreq, KEY_FIRST-A4_KEY);
-}
+    static getMicroNum(referenceFreq, freq, numSteps) {
+        return getNumMicrosBetween(referenceFreq, freq, numSteps) + (49 * numSteps);
+    }
 
-export function getMicroNum(referenceFreq, freq, numSteps) {
-    return getNumMicrosBetween(referenceFreq, freq, numSteps) + (49 * numSteps);
-}
+    static getNumMicrosBetween(referenceFreq, freq, numSteps) {
+        return Math.round(numSteps * 12 * Math.log2(freq/referenceFreq)) - numSteps + 1;
+    }
 
-export function getNumMicrosBetween(referenceFreq, freq, numSteps) {
-    return Math.round(numSteps * 12 * Math.log2(freq/referenceFreq)) - numSteps + 1;
+//let microFreq = Music.getKeyFrequency(Options.a4Freq, keyNum - A4_KEY + (microStep * step));
+//let microNum = Math.round(Music.getKeyNum(Options.a4Freq, microFreq) * Options.numMicroTones);
+
+    /* 
+    static getTotalNumKeys() {
+        return KEY_LAST-KEY_FIRST+1;
+    }
+
+    static getMinKeyFreq(referenceFreq) {
+        return getKeyFrequency(referenceFreq, KEY_FIRST-A4_KEY);
+    }
+
+    */
 }
 
