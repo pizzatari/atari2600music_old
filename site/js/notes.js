@@ -16,6 +16,8 @@ const KEY_LAST                  = 88;
 const LETTER_FIRST              = 3;
 const OCTAVE_FIRST              = 0;
 
+const NUM_PIANO_KEYS            = 88;
+
 export const noteList = [
     { note: 'G#/Ab', isWhite: false },
     { note: 'A',     isWhite: true  },
@@ -101,7 +103,7 @@ export class Options {
     static tuningGradient;
     static transpose;
     static numMicroTones;
-    static atariPitch;
+    static staticriPitch;
     static videoCfg;
     static printBlackKeys;
     static printGeometry;
@@ -156,7 +158,7 @@ export class Options {
         Options.a4Freq = parseFloat(document.getElementById('A4FreqId').value);
         Options.tuningSensitivity = parseInt(document.getElementById('TuningSensitivityId').value);
         Options.tuningGradient = document.getElementById('TuningGradientId').checked ? true : false;
-        Options.transpose = parseInt(document.getElementById('AtariPitchId').value);
+        Options.transpose = parseInt(document.getElementById('TransposeId').value);
         Options.numMicroTones = parseInt(document.getElementById('NumMicroTonesId').value);
         Options.atariPitch = parseInt(document.getElementById('AtariPitchId').value);
         Options.videoCfg = Options.getVideoCfg(document.getElementById('VideoFormatId').value);
@@ -334,6 +336,11 @@ export class NotePair {
 
     get getCents() {
 		if (this.#atariNote != null && !isNaN(this.#cents)) {
+			let tmp = Math.round(this.#cents * 10**Options.centPrecision) / 10**Options.centPrecision;
+			if (tmp > 100) {
+                console.log(JSON.stringify(this));
+            }
+
 			return Math.round(this.#cents * 10**Options.centPrecision) / 10**Options.centPrecision;
 		}
 		return NaN;
@@ -498,14 +505,98 @@ export class NotesTable {
 
         for (let keyNum = Options.firstPianoKey; keyNum <= Options.lastPianoKey; keyNum++) {
             let key = noteList[keyNum % 12].note;
+            let keyFreq = Music.getKeyFrequency(keyNum);
+
+//console.log(`kn=${keyNum} key=${key} kf=${keyFreq}`);
+
+            if (key == "C")
+                octave++
+
+            for (let microStep = 0-mid; microStep < (Options.numMicroTones-mid); microStep++) {
+                //let microFreq = Music.getKeyFrequency(Options.a4Freq, keyNum - A4_KEY + (microStep * step), Options.transpose);
+                //let microNum = Math.round(Music.getKeyNum(Options.a4Freq, microFreq) * Options.numMicroTones);
+                let microFreq = Music.getMicroFrequency((keyNum - A4_KEY + (microStep * step)) * Options.numMicroTones, Options.numMicroTones, Options.transpose);
+                let microNum = Math.round(Music.getMicroNum(microFreq));
+
+//console.log(`mn=${microNum} mf=${microFreq}`);
+
+                // don't store out of bound keys
+                if (octave == 0 && microStep < 0)
+                    continue;
+
+                if (octave == 8 && microStep > 0)
+                    continue;
+
+                let flatKey = '';
+                let flatFreq = 0.0;
+                let sharpKey = '';
+                let sharpFreq = 0.0;
+
+                if (microStep == 0) {
+                    flatKey = flatLetters[key] ? flatLetters[key] : '';
+                    flatFreq = Music.getKeyFrequency(keyNum - 1);
+                    sharpKey = sharpLetters[key] ? sharpLetters[key] : '';
+                    sharpFreq = Music.getKeyFrequency(keyNum + 1);
+
+                    if (keyNum == KEY_FIRST) {
+                        flatKey = '';
+                        flatFreq = 0.0;
+                    }
+
+                    if (keyNum == KEY_LAST) {
+                        sharpKey = '';
+                        sharpFreq = 0.0;
+                    }
+                }
+
+                ary.push(new PianoNote(
+                    octave,
+                    key,
+                    microFreq,
+                    flatKey,
+                    flatFreq,
+                    sharpKey,
+                    sharpFreq,
+                    keyNum,
+                    microNum,
+                    microStep,
+                ));
+            }
+        }
+
+        return ary;
+    }
+    /*
+    createPianoNotes() {
+        let ary = new Array();
+        let currOctave = Options.firstPianoOctave;
+        
+        for (let num = 1; num < (NUM_PIANO_KEYS * Options.numMicroTones); num++) {
+            let dist = num - (A4_KEY * Options.numMicroTones);
+            let freq = Music.getMicroFrequency(Options.a4Freq, dist, Options.numMicroTones);
+            let key = noteList[Math.ceil(num/Options.numMicroTones) % 12.note;
+
+            let freq = getMicroFrequency(referenceFreq, microDistance, numMicroTones) {
+
+
+
+
+        }
+
+
+
+        for (let keyNum = Options.firstPianoKey; keyNum <= Options.lastPianoKey; keyNum++) {
+            let key = noteList[keyNum % 12].note;
             let keyFreq = Music.getKeyFrequency(Options.a4Freq, keyNum - A4_KEY);
 
             if (key == "C")
                 octave++
 
             for (let microStep = 0-mid; microStep < (Options.numMicroTones-mid); microStep++) {
-                let microFreq = Music.getKeyFrequency(Options.a4Freq, keyNum - A4_KEY + (microStep * step));
-                let microNum = Math.round(Music.getKeyNum(Options.a4Freq, microFreq) * Options.numMicroTones);
+                //let microFreq = Music.getKeyFrequency(Options.a4Freq, keyNum - A4_KEY + (microStep * step));
+                //let microNum = Math.round(Music.getKeyNum(Options.a4Freq, microFreq) * Options.numMicroTones);
+                let microFreq = Music.getMicroFrequency(Options.a4Freq, (keyNum - A4_KEY + (microStep * step)) * Options.numMicroTones, Options.numMicroTones);
+                let microNum = Math.round(Music.getMicroNum(Options.a4Freq, microFreq, Options.numMicroTones));
 
                 // don't store out of bound keys
                 if (octave == 0 && microStep < 0)
@@ -553,16 +644,21 @@ export class NotesTable {
 
         return ary;
     }
+    */
 
-    createAtariNotes() {
+    createAtariNotes(pitch) {
         let ary = new Array();
+
+        if (pitch === undefined)
+            pitch = Options.atariPitch;
 
         if (Options.atariPitch in pixel_tones) {
             let baseFreq = Options.videoCfg.vid_freq / 114 / pitch_divisors[Options.atariPitch];
             for (let i = 32; i > 0; i--) {
                 let currFreq = baseFreq / i;
-                let keyNum = Math.round(Music.getKeyNum(Options.a4Freq, currFreq));
-                let microNum = Math.round(Music.getKeyNum(Options.a4Freq, currFreq)*Options.numMicroTones);
+                let keyNum = Math.round(Music.getKeyNum(currFreq));
+                //let microNum = Math.round(Music.getKeyNum(Options.a4Freq, currFreq)*Options.numMicroTones);
+                let microNum = Math.round(Music.getMicroNum(currFreq));
 
                 ary.push(new AtariNote(microNum, 'Color Clock', i-1, currFreq));
             }
@@ -570,8 +666,9 @@ export class NotesTable {
             let baseFreq = Options.videoCfg['cpu_freq'] / 114 / pitch_divisors[Options.atariPitch];
             for (let i = 32; i > 0; i--) {
                 let currFreq = baseFreq / i;
-                let keyNum = Math.round(Music.getKeyNum(Options.a4Freq, currFreq));
-                let microNum = Math.round(Music.getKeyNum(Options.a4Freq, currFreq) * Options.numMicroTones);
+                let keyNum = Math.round(Music.getKeyNum(currFreq));
+                //let microNum = Math.round(Music.getKeyNum(currFreq) * Options.numMicroTones);
+                let microNum = Math.round(Music.getMicroNum(currFreq));
 
                 ary.push(new AtariNote(microNum, 'CPU Clock', i-1, currFreq));
             }
@@ -646,8 +743,7 @@ export class Page {
     		'TuningGradientId': 		null,
     		//'TuningId': 				(e) => { Page.notesTable.rebuildPianoNotes() },
     		'TransposeId': 				(e) => { Page.notesTable.rebuildNotePairs() },
-    		'NumMicroTonesId': 			(e) => { Page.notesTable.rebuildPianoNotes() },
-    		'AtariPitchId': 			(e) => { Page.notesTable.rebuildAtariNotes() },
+    		'AtariPitchId': 			(e) => { Page.notesTable.rebuildNotePairs() },
     		'VideoFormatId': 			(e) => { Page.notesTable.rebuildAtariNotes() },
     		'PrintBlackKeysId': 		null,
     		'PrintGeometryId': 			null,
@@ -660,7 +756,7 @@ export class Page {
     		'A4FreqRangeId':  			(e) => { Page.notesTable.rebuildNotePairs() },
     		'TuningSensitivityRangeId': null,
     		'TransposeRangeId': 		(e) => { Page.notesTable.rebuildNotePairs() },
-    		'NumMicroTonesRangeId': 	(e) => { Page.notesTable.rebuildPianoNotes() }
+    		'NumMicroTonesRangeId': 	(e) => { Page.notesTable.rebuildNotePairs() }
 		}
 
         // on change events
@@ -752,11 +848,17 @@ export class Page {
         node.innerHTML = outHtml;
 
         // info
-        outHtml = Math.round(Options.videoCfg.vid_freq).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "/" + Math.round(Options.videoCfg.fps);
-        $("#VidFreqId").html(`${outHtml} Hz`);
+        //outHtml = Math.round(Options.videoCfg.vid_freq).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "/" + Math.round(Options.videoCfg.fps);
+        outHtml = `Vid/FPS/CPU: <span>
+            ${round(Options.videoCfg.vid_freq/1e6, 4)} MHz /
+            ${round(Options.videoCfg.fps,1)} Hz /
+            ${round(Options.videoCfg.cpu_freq/1e6,4)} MHz</span>`;
+
+        $("#VidFreqId").html(outHtml);
+        $("#VidFreqId").prop('title', `${round(Options.videoCfg.vid_freq,2)} Hz / ${round(Options.videoCfg.fps,6)} Hz / ${round(Options.videoCfg.cpu_freq,2)} Hz`);
         $("#TotalTunedId").html(tuning.getNumTuned);
         $("#QualityId").html(tuning.getAvgCents);
-        $("#MaxRangeId").html(`[${tuning.getMinCents} to ${tuning.getMaxCents}] &Delta;${tuning.getCentRange}`);
+        $("#MaxRangeId").html(`[${tuning.getMinCents} &rarr; ${tuning.getMaxCents}] &Delta;${tuning.getCentRange}`);
         
         outHtml = '';
         let octave = NaN;
@@ -797,13 +899,15 @@ export class Page {
 
         if (Options.printGeometry) {
             const notes = noteList.map(elem => elem.note);
-            let carousel = new Carousel(canvas, notes, 'bold 14pt sans-serif');
+            let img = document.getElementById('BachId');
+            let carousel = new Carousel(canvas, notes, 'bold 14pt sans-serif', img);
             canvas.style.display = 'block';
         } else {
             canvas.style.display = 'none';
         }
     }
 
+    // this is hacky. to be cleaned up later
     static renderDistribution() {
         if (Page.notesTable.getNotePairs.size == 0)
             return;
@@ -812,46 +916,98 @@ export class Page {
         if (Page.notesTable.getAtariNotes.length == 0)
             return;
 
-        let canvas = document.getElementById('DistributionId');
-        let ctx = canvas.getContext("2d");
-        ctx.fillStyle = "white";
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = "1px";
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "black";
-        ctx.strokeStyle = "black";
-        ctx.save();
+        {
+            let canvas = document.getElementById('Distribution2Id');
+            let ctx = canvas.getContext("2d");
+            ctx.fillStyle = "white";
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = "1px";
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "black";
+            ctx.strokeStyle = "black";
+            ctx.save();
 
-        let yScale = (canvas.height-5) / NotePair.maxCents;
-        let w = Math.floor(canvas.width / Page.notesTable.getAtariNotes.length);
-        let x = 0;
-        let y = canvas.height;
-        let colorScale = 128 / 32;
+            let yScale = (canvas.height-5) / NotePair.maxCents;
+            let w = Math.floor(canvas.width / Page.notesTable.getAtariNotes.length);
+            let x = 0;
+            let y = canvas.height;
+            let colorScale = 128 / 32;
 
-        let pivot = new Array(32);
-        for(let [microNum, pair] of Page.notesTable.getNotePairs) {
-            if (isNaN(pair.getCents)) continue;
+            let pivot = new Array(32);
+            for(let [microNum, pair] of Page.notesTable.getNotePairs) {
+                if (isNaN(pair.getCents)) continue;
 
-            if (Math.abs(pair.getCents) > Options.tuningSensitivity) continue;
+                if (Math.abs(pair.getCents) > Options.tuningSensitivity) continue;
 
-            let pitch = pair.getAtariNote.getPitch;
-            pivot[pitch] = pair.getCents;
-        }
-
-        for (let pitch = pivot.length-1; pitch >= 0; pitch--) {
-            let color = 128 - (pitch * colorScale);
-
-            if(pivot[pitch]) {
-                let h = Math.ceil(Math.abs(pivot[pitch] * yScale));
-                ctx.fillStyle = `rgb(${color},${color},${color})`;
-                ctx.fillRect(x, y, w, -h - 5) ;
-            } else {
-                ctx.fillStyle = 'red';
-                ctx.fillRect(x, y, w, -5);
+                let pitch = pair.getAtariNote.getPitch;
+                pivot[pitch] = pair.getCents;
             }
 
-            x += w;
+            for (let pitch = pivot.length-1; pitch >= 0; pitch--) {
+                let color = 128 - (pitch * colorScale);
+
+                if(pivot[pitch]) {
+                    let h = Math.ceil(Math.abs(pivot[pitch] * yScale));
+                    ctx.fillStyle = `rgb(${color},${color},${color})`;
+                    ctx.fillRect(x, y, w, -h - 5) ;
+                } else {
+                    ctx.fillStyle = 'red';
+                    ctx.fillRect(x, y, w, -5);
+                }
+
+                x += w;
+            }
+        }
+        
+        {
+            let canvas = document.getElementById('DistributionId');
+            let ctx = canvas.getContext("2d");
+            ctx.fillStyle = "white";
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = "1px";
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "black";
+            ctx.strokeStyle = "black";
+            ctx.save();
+
+            let yScale = (canvas.height-5) / NotePair.maxCents;
+            let w = Math.floor(canvas.width / Page.notesTable.getAtariNotes.length);
+            let x = 0;
+            let y = Math.round(canvas.height/2);
+            let colorScale = 128 / 32;
+
+            let pivot = new Array(32);
+            for(let [microNum, pair] of Page.notesTable.getNotePairs) {
+                if (isNaN(pair.getCents)) continue;
+
+                if (Math.abs(pair.getCents) > Options.tuningSensitivity) continue;
+
+                let pitch = pair.getAtariNote.getPitch;
+                pivot[pitch] = pair.getCents;
+            }
+
+            for (let pitch = pivot.length-1; pitch >= 0; pitch--) {
+                let color = 128 - (pitch * colorScale);
+
+                if(pivot[pitch]) {
+                    let h = Math.round(pivot[pitch] * yScale / 2 - 5);
+                    ctx.fillStyle = `rgb(${color},${color},${color})`;
+                    ctx.fillRect(x, y, w, -h - 5) ;
+                } else {
+                    ctx.fillStyle = 'red';
+                    ctx.fillRect(x, y, w, -5);
+                }
+
+
+                if (pitch % 2 == 0) {
+                    ctx.fillStyle = 'black';
+                    ctx.fillText(pitch.toString(), x, canvas.height-5);
+                }
+
+                x += w;
+            }
         }
     }
 
@@ -1073,10 +1229,7 @@ export class Page {
 }
 
 // maps ASCII coded music symbol to HTML entity
-const MusicEntities = {
-    'b': '&flat;',  	// music flat sign
-    'n': '&natur;',     // music natural sign
-    '#': '&sharp;',     // music sharp sign
+const musicEntities = {
     '##': '&#119082;',  // musical symbol double sharp
     'bb': '&#119083;',  // musical symbol double flat
     'b^': '&#119084;',  // musical symbol flat up
@@ -1086,16 +1239,84 @@ const MusicEntities = {
     '#^': '&#119088;',  // musical symbol sharp up
     '#v': '&#119089;',  // musical symbol sharp down
     '#4': '&#119090;',  // musical symbol quarter tone sharp
-    'b4': '&#119091;'   // musical symbol quarter tone flat
+    'b4': '&#119091;',  // musical symbol quarter tone flat
+    'b': '&flat;',  	// music flat sign
+    'n': '&natur;',     // music natural sign
+    '#': '&sharp;'      // music sharp sign
 };
 
 export class Music {
-	static entity(n) { return MusicEntitities[n] ? MusicEntities[n] : ''; }
-
-    static getKeyFrequency(referenceFreq, semiDistance) {
-        return referenceFreq * (2 ** (semiDistance/12));
+    static getKeyFrequency(keyNum) {
+        let dist = keyNum - A4_KEY;     // semitone distance from A4
+        return 2 ** ((dist*100+Options.transpose)/1200) * Options.a4Freq;
     }
 
+    // cents: transpose frequency by cent value
+    static getMicroFrequency(microDistance, numMicroTones, cents) {
+        return 2 ** ((microDistance*100+Options.transpose)/(1200*Options.numMicroTones)) * Options.a4Freq;
+    }
+
+    static getKeyNum(freq) {
+        return Music.getKeyDistance(Options.a4Freq, freq) + A4_KEY;
+    }
+
+    static getMicroNum(freq) {
+        return Music.getMicroDistance(Options.a4Freq, freq, Options.numMicroTones) + (A4_KEY*Options.numMicroTones);
+    }
+
+    static getCents(fromFreq, toFreq) {
+        if(fromFreq == 0)
+            return NaN;
+
+        return Math.log2(toFreq/fromFreq) * 1200;
+    }
+
+    static getOctave(a4Freq, freq) {
+        let c0 = Music.getKeyFrequency(-A4_KEY - 9);
+
+        let cents = 1200 * Math.log2();
+    }
+
+    /*
+    static getMicroNum(a4Freq, freq, numSteps) {
+        return Music.getNumMicrosBetween(Options.a4Freq, freq, numSteps) + (A4_KEY * numSteps);
+    }
+    */
+
+    static getNumMicrosBetween(a4Freq, freq, numSteps) {
+        return Math.round(numSteps * 12 * Math.log2(freq/Options.a4Freq)) - numSteps + 1;
+    }
+
+    //
+
+    static getKeyDistance(fromFreq, toFreq) {
+        return 12 * Math.log2(toFreq/fromFreq);
+    }    
+
+    static getMicroDistance(a4Freq, freq, numMicroTones) {
+        return (12*numMicroTones) * Math.log2(freq/Options.a4Freq);
+    }    
+
+    static transpose(freq, cents) {
+//        console.log('transpose ' + cents + ' freq ' + freq);
+        return freq * (2**(cents/1200));
+    }
+
+    //
+
+	static entity(n) {
+        return musicEntitities[n] ? musicEntities[n] : '';
+    }
+
+    static toEntities(str) {
+        for(let [key, val] of musicEntities) {
+            str = str.replace(key, val);
+        }
+        return str;
+    }
+
+    /*
+    // old
     static getKeyNum(referenceFreq, freq) {
         return Music.getNumKeysBetween(referenceFreq, freq) + 49;
     }
@@ -1104,25 +1325,9 @@ export class Music {
         return 12 * Math.log2(freq/referenceFreq);
     }
 
-    static getCents(referenceFreq, freq) {
-        if(referenceFreq == 0)
-            return NaN;
+    //let microFreq = Music.getKeyFrequency(Options.a4Freq, keyNum - A4_KEY + (microStep * step));
+    //let microNum = Math.round(Music.getKeyNum(Options.a4Freq, microFreq) * Options.numMicroTones);
 
-        return Math.log2(freq/referenceFreq) * 1200;
-    }
-
-    static getMicroNum(referenceFreq, freq, numSteps) {
-        return getNumMicrosBetween(referenceFreq, freq, numSteps) + (49 * numSteps);
-    }
-
-    static getNumMicrosBetween(referenceFreq, freq, numSteps) {
-        return Math.round(numSteps * 12 * Math.log2(freq/referenceFreq)) - numSteps + 1;
-    }
-
-//let microFreq = Music.getKeyFrequency(Options.a4Freq, keyNum - A4_KEY + (microStep * step));
-//let microNum = Math.round(Music.getKeyNum(Options.a4Freq, microFreq) * Options.numMicroTones);
-
-    /* 
     static getTotalNumKeys() {
         return KEY_LAST-KEY_FIRST+1;
     }
@@ -1130,7 +1335,10 @@ export class Music {
     static getMinKeyFreq(referenceFreq) {
         return getKeyFrequency(referenceFreq, KEY_FIRST-A4_KEY);
     }
-
     */
+}
+
+function round(num, precision) {
+    return Math.round(num * (10**precision)) / (10**precision);
 }
 

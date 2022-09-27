@@ -17,6 +17,10 @@
 import * as Notes from "./js/notes.js"
 
 window.addEventListener('DOMContentLoaded', (evt) => {
+    // add styles
+    addBackgroundStyle();
+
+    // build page
     Notes.Options.loadFromStorage();
     Notes.Options.writeToForm();
     let notesTable = new Notes.NotesTable(true);
@@ -25,55 +29,40 @@ window.addEventListener('DOMContentLoaded', (evt) => {
 
     document.getElementById('A4FreqId').focus();
 });
+
+function addBackgroundStyle() {
+	let radial = '';
+	let stop1 = 0;
+	let stop2 = 0;
+
+	for (let x = 0; x < 5; x += 0.4) {
+		let xPos = Math.sin(x) * 100 + 300;
+		let yPos = x * 300 + 300;
+		//let stop1 = x * 300 + 300;
+		//let stop2 = x * 300 + 300;
+		stop1 = x * 100 + 500;
+		stop2 = stop1 + 10;
+		radial += `radial-gradient(circle at top ${yPos}px left ${xPos}px, rgba(128,128,255,0.05) ${stop1}px, rgba(0,0,128,0.05) ${stop2}px),`;
+	}
+	
+	let css = `.bg-color { background-image: ${radial} linear-gradient(#00f, #f00); }`;
+	$("<style>").prop("type","text/css").prop("media","screen").html(css).appendTo("head");
+	$("#BodyId").addClass("bg-color");
+}
 </script>
 
 </head>
 
-<body>
-    <h1>Atari 2600 Music Explorer (<a href="https://pizzatari.github.io/atari2600music" title="Canonical link to this site">https://pizzatari.github.io/atari2600music</a>)</h1>
-
-<div id="NotesTableContainerId"></div>
-
-<!--
-<table class="tone-list">
-<tbody id="tone-data"></tbody>
-</table>
--->
-
-<div id="GeometryContainerId"></div>
-
-<canvas id="GeometryId" width="400" height="400"></canvas>
+<body id="BodyId">
+<h1>Atari 2600 Music Explorer (<a href="https://pizzatari.github.io/atari2600music" title="Canonical link to this site">https://pizzatari.github.io/atari2600music</a>)</h1>
 
 <div id="OptionsId" class="form">
-    <fieldset><legend>Options</legend>
-        <input type="number" id="A4FreqId" name="A4Freq" value="440.0" size="8" min="1.0" class="frm">
-        <label for="A4Freq">A4 frequency (Hz)</label>
-        <input type="range" id="A4FreqRangeId" name="A4FreqRange" value="440" min="100" max="1000" class="frm">
-        <input type="number" id="TuningSensitivityId" name="TuningSensitivity" value="50" size="8" min="0" max="50" class="frm">
-        <label for="TuningSensitivityId">Tuning sensitivity (cents)</label>
-        <input type="range" id="TuningSensitivityRangeId" name="TuningSensitivityRange" value="50" min="0" max="50" class="frm">
-        <input type="checkbox" id="TuningGradientId" name="TuningGradientId" value="Yes" class="frm" checked>
-        <label for="TuningGradientId">Color Gradient</label>
-        <br>
-
-        <select id="TuningId" name="Tuning" class="frm">
-        <option value="equal">Equal Temperment (ET)</option>
-        <!-- option value="just">Just</option>
-        <option value="pyth">Pythagorean</option>
-        <option value="mean">Meantone</option -->
+    <fieldset><legend>Atari Options</legend>
+        <select id="VideoFormatId" name="VideoFormat" class="frm">
+        <option value="ntsc">NTSC (60 Hz)</option>
+        <option value="pal">PAL (50 Hz)</option>
         </select>
-        <label for="TuningMethodId">Tuning method</label>
-        <br>
-
-        <input type="number" id="TransposeId" name="Transpose" value="0" size="5" class="frm">
-        <label for="TransposeId">Transpose (cents)</label>
-        <input type="range" id="TransposeRangeId" name="TransposeRange" value="0" min="0" max="50" class="frm">
-        <br>
-
-        <input type="number" id="NumMicroTonesId" name="NumMicroTones" value="1" size="5" min="1" class="frm">
-        <label for="NumMicroTonesId">Microtones per key</label>
-        <input type="range" id="NumMicroTonesRangeId" name="NumMicroTonesRange" value="1" min="1" max="11" class="frm">
-        <br>
+        <label for="VideoFormatId" title="Select the television format: NTSC 60 Hz or PAL 50 Hz">Video/Audio format</label>
 
         <select id="AtariPitchId" name="AtariPitch" class="frm">
         <option value="0">0 or 11 (silence)</option>
@@ -88,58 +77,99 @@ window.addEventListener('DOMContentLoaded', (evt) => {
         <option value="14">14 (low rumble)</option>
         <option value="15">15 (loud rumble)</option>
         </select>
-        <label for="AtariPitchId">Atari tone (AUDC)</label>
-        <br>
+        <label for="AtariPitchId">Atari tone (AUDC0)</label>
 
-        <select id="VideoFormatId" name="VideoFormat" class="frm">
-        <option value="ntsc">NTSC (60 Hz)</option>
-        <option value="pal">PAL (50 Hz)</option>
+        <select id="AtariPitch1Id" name="AtariPitch1" class="frm">
+        <option value="0">0 or 11 (silence)</option>
+        <option value="1">1 (buzzy high pitch)</option>
+        <option value="2">2 (noisy engine)</option>
+        <option value="3">3 (buzzy engine)</option>
+        <option value="4" selected>4 or 5 (pure high tone)</option>
+        <option value="6">6 or 10 (buzzy pure)</option>
+        <option value="7">7 or 9 (buzzy medium pitch)</option>
+        <option value="8">8 (noise)</option>
+        <option value="12">12 or 13 (pure medium tone)</option>
+        <option value="14">14 (low rumble)</option>
+        <option value="15">15 (loud rumble)</option>
         </select>
-        <label for="VideoFormatId" title="Select the television format: NTSC 60 Hz or PAL 50 Hz">Video/Audio format</label>
+        <label for="AtariPitch1Id">Atari tone (AUDC1)</label>
     </fieldset>
 
-    <fieldset><legend>Show</legend>
+    <fieldset><legend>Piano Options</legend>
+        <select id="TuningId" name="Tuning" class="frm">
+        <option value="12-TET">12-TET</option>
+        <!-- option value="just">Just</option>
+        <option value="pyth">Pythagorean</option>
+        <option value="mean">Meantone</option -->
+        </select>
+
+        <label for="TuningMethodId">Tuning method</label>
+        <input type="number" id="A4FreqId" name="A4Freq" value="440.0" size="8" min="1.0" class="frm">
+        <label for="A4Freq">A4 frequency (Hz)</label>
+        <input type="range" id="A4FreqRangeId" name="A4FreqRange" value="440" min="100" max="1000" class="frm">
+        <br>
+
+        <input type="number" id="TransposeId" name="Transpose" value="0" size="5" class="frm">
+        <label for="TransposeId">Transpose (cents)</label>
+        <input type="range" id="TransposeRangeId" name="TransposeRange" value="0" min="-100" max="100" class="frm">
+        <br>
+
+        <input type="number" id="NumMicroTonesId" name="NumMicroTones" value="1" size="5" min="1" class="frm">
+        <label for="NumMicroTonesId">Microtones per key</label>
+        <input type="range" id="NumMicroTonesRangeId" name="NumMicroTonesRange" value="1" min="1" max="11" class="frm">
+        <br>
+
+        <input type="number" id="TuningSensitivityId" name="TuningSensitivity" value="50" size="8" min="0" max="50" class="frm">
+        <label for="TuningSensitivityId">Tuning sensitivity (cents)</label>
+        <input type="range" id="TuningSensitivityRangeId" name="TuningSensitivityRange" value="50" min="0" max="50" class="frm">
+    </fieldset>
+
+    <fieldset><legend>Result Options</legend>
+        <input type="checkbox" id="TuningGradientId" name="TuningGradientId" value="Yes" class="frm" checked>
+        <label for="TuningGradientId">Color Gradient</label>
         <input type="checkbox" id="PrintBlackKeysId" name="PrintBlackKeys" value="Yes" class="frm">
-        <label for="PrintBlackKeysId" title="Print black keys as table rows">Accidental rows</label>
+        <label for="PrintBlackKeysId" title="Print black keys as table rows"><span style="font-size:125%;">&sharp;&flat;</span> as rows</label>
+        <input type="checkbox" id="ShowBlackKeysId" name="ShowBlackKeys" value="Yes" class="frm">
+        <label for="ShowBlackKeysId" title="Show black keys as table rows"><span style="font-size:125%;">&sharp;&flat;</span> black keys</label>
         <input type="checkbox" id="PrintGeometryId" name="PrintGeometry" value="Yes" class="frm" checked>
         <label for="PrintGeometryId">Geometry</label>
         <input type="checkbox" id="PrintFrequencyId" name="PrintFrequency" value="Yes" class="frm" checked>
-        <label for="PrintFrequencyId">Frequency</label>
-    </fieldset>
+        <label for="PrintFrequencyId">Freq. </label>
 
-    <fieldset><legend>Operations</legend>
-        <div>
-            <!--
-            <input type="checkbox" id="InnerJoinId" name="InnerJoinId" value="Yes" checked>
-            <label for="InnerJoinId">Inner join</label>
-            <input type="checkbox" id="ExpandPianoId" name="ExpandPiano" value="Yes" class="frm">
-            <label for="ExpandPianoId" title="Expand piano to include out of range Atari notes">Expand</label>
-            -->
-            <input type="checkbox" id="ShrinkPianoId" name="ShrinkPiano" value="Yes" class="frm">
-            <label for="ShrinkPianoId" title="Shrink piano to fit to Atari note range">Shrink</label>
-            <input type="checkbox" id="JumpToFirstId" name="JumpToFirst" value="Yes" class="frm">
-            <label for="JumpToFirstId" title="Scroll to the first Atari note">Scroll to Atari</label>
-        </div>
-        <div>
-            <button id="ResetId" name="Reset">Reload Defaults</button>
-        </div>
-    </fieldset>
+        <!--
+        <input type="checkbox" id="InnerJoinId" name="InnerJoinId" value="Yes" checked>
+        <label for="InnerJoinId">Inner join</label>
+        <input type="checkbox" id="ExpandPianoId" name="ExpandPiano" value="Yes" class="frm">
+        <label for="ExpandPianoId" title="Expand piano to include out of range Atari notes">Expand</label>
+        -->
+        <input type="checkbox" id="ShrinkPianoId" name="ShrinkPiano" value="Yes" class="frm">
+        <label for="ShrinkPianoId" title="Shrink piano to fit to Atari note range">Shrink</label>
+        <input type="checkbox" id="JumpToFirstId" name="JumpToFirst" value="Yes" class="frm">
+        <label for="JumpToFirstId" title="Scroll to the first Atari note">Scroll to Atari</label>
 
-    <fieldset><legend>Output</legend>
-        <div>
-            <!-- button id="PrintPianoId" name="Print" onclick="$('#OptionsId').hide(); window.print()">Print Piano</button -->
-            <button id="PrintPageId" name="Print" onclick="window.print()">Print Page</button>
-            <input type="checkbox" id="SoundOnId" name="SoundOnId" class="frm">
-            <label for="SoundOnId">Enable Sound</label>
-        </div>
+        <br>
+        <input type="checkbox" id="SoundOnId" name="SoundOnId" class="frm">
+        <label for="SoundOnId">Enable Sound</label>
+
+        <button id="ResetId" name="Reset">Reload Defaults</button>
     </fieldset>
 
     <fieldset class="info"><legend>Info</legend>
-        <div>Video Freq/Frame rate: <span id="VidFreqId"></span></div>
-        <div>Total in "tune": <span id="TotalTunedId">0</span></div>
-        <div>Avg cents: <span id="QualityId">0</span></div>
+        <div id="VidFreqId"></div>
+        <!-- div>Vid/FPS/CPU: <span id="VidFreqId"></span></div -->
+
+        <div>Total in "tune": <span id="TotalTunedId">0</span> / Avg cents: <span id="QualityId">0</span></div>
         <div>Cent range: <span id="MaxRangeId">0</span></div>
-        <div>Cent Distribution over Atari Pitches (31 to 0): <canvas id="DistributionId" width="320" height="50"></canvas></div>
+        <div>Cent Distribution over Atari Pitches (31 &rarr; 0):
+            <canvas id="DistributionId" width="320" height="70"
+                title="X axis is Atari pitch. Y axis is cents. Red gaps indicate a dropped note.
+Notes are dropped when they're below the selected tuning sensitivity
+or when two notes map to the same piano note, but one note is closer to tune."></canvas>
+            <canvas id="Distribution2Id" width="320" height="35"
+                title="X axis is Atari pitch. Y axis is cents. Red gaps indicate a dropped note.
+Notes are dropped when they're below the selected tuning sensitivity
+or when two notes map to the same piano note, but one note is closer to tune."></canvas>
+        </div>
     </fieldset>
 
     <fieldset><legend>"Tuned" Notes</legend>
@@ -147,15 +177,23 @@ window.addEventListener('DOMContentLoaded', (evt) => {
     </fieldset>
 
     <fieldset><legend>Major Chords</legend>
-        <div id="ChordsListId">
-            <p>blah blah blah</p>
-            <p>blah blah blah</p>
-            <p>blah blah blah</p>
-            <p>blah blah blah</p>
-            <p>blah blah blah</p>
-        </div>
+        <div id="ChordsListId"></div>
+    </fieldset>
+
+    <fieldset><legend>Output</legend>
+        <!-- button id="PrintPianoId" name="Print" onclick="$('#OptionsId').hide(); window.print()">Print Piano</button -->
+        <button id="PrintPageId" name="Print" onclick="window.print()">Print Page</button>
+        <input type="checkbox" id="HideUIOnId" name="HideUIOnId" class="frm">
+        <label for="HideUIOnId">Hide UI</label>
     </fieldset>
 </div>
+
+<div id="NotesTableContainerId"></div>
+
+<div id="GeometryContainerId"></div>
+<canvas id="GeometryId" width="400" height="400"></canvas>
+
+<div style="display:none;"><img id="BachId" src="img/cool-bach.png" width="237" height="259" /></div>
 
 </body>
 </html>

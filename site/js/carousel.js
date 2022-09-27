@@ -8,10 +8,12 @@ export class Carousel {
     radialMargin = 0.40;
     nodeRadius = 35;
     rotation = 0;
+    img = null;
 
-    constructor (canvas, labels, font) {
+    constructor (canvas, labels, font, img) {
         this.canvas = canvas;
         this.labels = labels;
+        this.img = img;
 
         this.ctx = canvas.getContext("2d");
         this.ctx.textAlign = 'center';
@@ -34,7 +36,7 @@ export class Carousel {
             item.angleDegs = (item.angleRads) * (180 / Math.PI);
             item.x = Math.cos(item.angleRads) * item.radius;
             item.y = Math.sin(item.angleRads) * item.radius;
-            item.duration = 10000;
+            item.duration = 50000;
             item.rotSpeed = tau / item.duration;            // velocity rad/sec
             item.start = Date.now();
             this.slot.push(item);
@@ -76,7 +78,22 @@ export class Carousel {
             that.ctx.fill();
             that.ctx.closePath();
 
-            for(var i = 0; i < that.slot.length; i++){
+			let dim = 175;
+            let aRatio = that.img.width/that.img.height;
+			let dX = -dim/2;
+			let dY = -dim/aRatio/2;
+            that.ctx.drawImage(that.img, dX, dY, dim, dim/aRatio);
+
+			dX = 0;
+			dY = 0;
+			that.ctx.beginPath()
+            that.ctx.fillStyle = 'white';
+			that.ctx.arc(dX, dY, Math.max(that.img.width, that.img.height)/2 * 1, 0, Math.PI*2, false);
+			that.ctx.arc(dX, dY, Math.max(that.img.width, that.img.height)/2 * 0.92,  0, Math.PI*2, true);
+			that.ctx.fill();
+			that.ctx.closePath();
+
+            for(var i = 0; i < that.slot.length; i++) {
                 // (360/12*5) to orient yellow to the 12 o'clock position
                 let hue = parseInt((360/12*5 + that.slot[i].angleDegs) % 360);
                 let color = `hsl(${hue},100%,70%)`;
@@ -100,8 +117,9 @@ export class Carousel {
 
             that.ctx.restore();
             //requestAnimationFrame(callback);
+
         }
         requestAnimationFrame(callback);
-        //callback();
+        callback();
     }
 }
