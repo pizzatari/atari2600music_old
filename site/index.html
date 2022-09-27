@@ -32,16 +32,12 @@ window.addEventListener('DOMContentLoaded', (evt) => {
 
 function addBackgroundStyle() {
 	let radial = '';
-	let stop1 = 0;
-	let stop2 = 0;
 
 	for (let x = 0; x < 5; x += 0.4) {
-		let xPos = Math.sin(x) * 100 + 300;
-		let yPos = x * 300 + 300;
-		//let stop1 = x * 300 + 300;
-		//let stop2 = x * 300 + 300;
-		stop1 = x * 100 + 500;
-		stop2 = stop1 + 10;
+		let xPos = Math.round(Math.sin(x) * 100 + 300);
+		let yPos = Math.round(x * 300 + 300);
+		let stop1 = Math.round(x * 100 + 500);
+		let stop2 = Math.round(stop1 + 10);
 		radial += `radial-gradient(circle at top ${yPos}px left ${xPos}px, rgba(128,128,255,0.05) ${stop1}px, rgba(0,0,128,0.05) ${stop2}px),`;
 	}
 	
