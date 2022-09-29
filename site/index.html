@@ -12,9 +12,13 @@
 <script src="./js/jquery-3.6.1.min.js"></script>
 <script type="module" src="./js/notes.js"></script>
 <script type="module" src="./js/carousel.js"></script>
+<script type="module" src="./js/instrument.js"></script>
 
 <script type="module">
 import * as Notes from "./js/notes.js"
+import * as Instrument from "./js/instrument.js"
+
+//let piano = null;
 
 window.addEventListener('DOMContentLoaded', (evt) => {
     // add styles
@@ -28,6 +32,29 @@ window.addEventListener('DOMContentLoaded', (evt) => {
     Notes.Page.render();
 
     document.getElementById('A4FreqId').focus();
+/*
+	document.getElementById('EnableSoundId').addEventListener('change', (e)=>{
+		if (e.target.checked && piano == null) {
+			console.log("Enabling sound");
+			piano = new Instrument.Piano();
+		} else if (e.target.checked && piano != null) {
+			console.log("Resuming sound");
+			piano.resume();
+		} else if (!e.target.checked && piano != null) {
+			console.log("Suspending sound");
+			piano.suspend();
+		}
+	});
+*/
+
+/*
+	// assign piano key handlers
+	let key = document.getElementsByClassName('micronum-49')[0];
+	key.addEventListener('click', (e)=> {
+		if (piano != null)
+			piano.playFrequency(440, 250);
+	});
+*/
 });
 
 function addBackgroundStyle() {
@@ -45,12 +72,98 @@ function addBackgroundStyle() {
 	$("<style>").prop("type","text/css").prop("media","screen").html(css).appendTo("head");
 	$("#BodyId").addClass("bg-color");
 }
+
+function initSound(evt) {
+	console.log("Init audio");
+    try {
+		if(audioCtx == null)
+    		audioCtx = new AudioContext();
+    }
+    catch(e) {
+		console.log(e.toString());
+    	alert('Web Audio API is not supported in this browser');
+    }
+}
+
+function playNote() {
+	console.log("play note");
+	let osc = new OscillatorSample(audioCtx);
+	osc.play();
+}
+
+function OscillatorSample(context) {
+  this.context = context;
+  this.isPlaying = false;
+  //this.canvas = document.querySelector('canvas');
+  this.WIDTH = 640;
+  this.HEIGHT = 240;
+}
+
+OscillatorSample.prototype.play = function() {
+  // Create some sweet sweet nodes.
+  this.oscillator = this.context.createOscillator();
+  this.analyser = this.context.createAnalyser();
+
+  // Setup the graph.
+  this.oscillator.connect(this.analyser);
+  this.analyser.connect(this.context.destination);
+
+  this.oscillator[this.oscillator.start ? 'start' : 'noteOn'](0);
+
+  //requestAnimFrame(this.visualize.bind(this));
+};
+
+OscillatorSample.prototype.stop = function() {
+  this.oscillator.stop(0);
+};
+
+OscillatorSample.prototype.toggle = function() {
+  (this.isPlaying ? this.stop() : this.play());
+  this.isPlaying = !this.isPlaying;
+
+};
+
+OscillatorSample.prototype.changeFrequency = function(val) {
+  this.oscillator.frequency.value = val;
+};
+
+OscillatorSample.prototype.changeDetune = function(val) {
+  this.oscillator.detune.value = val;
+};
+
+OscillatorSample.prototype.changeType = function(type) {
+  this.oscillator.type = type;
+};
+
+/*
+OscillatorSample.prototype.visualize = function() {
+  this.canvas.width = this.WIDTH;
+  this.canvas.height = this.HEIGHT;
+  var drawContext = this.canvas.getContext('2d');
+
+  var times = new Uint8Array(this.analyser.frequencyBinCount);
+  this.analyser.getByteTimeDomainData(times);
+  for (var i = 0; i < times.length; i++) {
+    var value = times[i];
+    var percent = value / 256;
+    var height = this.HEIGHT * percent;
+    var offset = this.HEIGHT - height - 1;
+    var barWidth = this.WIDTH/times.length;
+    drawContext.fillStyle = 'black';
+    drawContext.fillRect(i * barWidth, offset, 1, 1);
+  }
+  requestAnimFrame(this.visualize.bind(this));
+};
+*/
 </script>
 
 </head>
 
 <body id="BodyId">
-<h1>Atari 2600 Music Explorer (<a href="https://pizzatari.github.io/atari2600music" title="Canonical link to this site">https://pizzatari.github.io/atari2600music</a>)</h1>
+
+<h1>Atari 2600 Music Explorer (<a href="https://pizzatari.github.io/atari2600music"
+        title="Canonical link to this site">https://pizzatari.github.io/atari2600music</a>)
+</h1>
 
 <div id="OptionsId" class="form">
     <fieldset><legend>Atari Options</legend>
@@ -75,7 +188,7 @@ function addBackgroundStyle() {
         </select>
         <label for="AtariPitchId">Atari tone (AUDC0)</label>
 
-        <select id="AtariPitch1Id" name="AtariPitch1" class="frm">
+        <select id="AtariPitch1Id" name="AtariPitch1" class="frm" disabled>
         <option value="0">0 or 11 (silence)</option>
         <option value="1">1 (buzzy high pitch)</option>
         <option value="2">2 (noisy engine)</option>
@@ -96,7 +209,8 @@ function addBackgroundStyle() {
         <option value="12-TET">12-TET</option>
         <!-- option value="just">Just</option>
         <option value="pyth">Pythagorean</option>
-        <option value="mean">Meantone</option -->
+        <option value="mean">Meantone</option>
+        <option value="just">Just</option -->
         </select>
 
         <label for="TuningMethodId">Tuning method</label>
@@ -131,7 +245,6 @@ function addBackgroundStyle() {
         <label for="PrintGeometryId">Geometry</label>
         <input type="checkbox" id="PrintFrequencyId" name="PrintFrequency" value="Yes" class="frm" checked>
         <label for="PrintFrequencyId">Freq. </label>
-
         <!--
         <input type="checkbox" id="InnerJoinId" name="InnerJoinId" value="Yes" checked>
         <label for="InnerJoinId">Inner join</label>
@@ -142,18 +255,14 @@ function addBackgroundStyle() {
         <label for="ShrinkPianoId" title="Shrink piano to fit to Atari note range">Shrink</label>
         <input type="checkbox" id="JumpToFirstId" name="JumpToFirst" value="Yes" class="frm">
         <label for="JumpToFirstId" title="Scroll to the first Atari note">Scroll to Atari</label>
-
         <br>
-        <input type="checkbox" id="SoundOnId" name="SoundOnId" class="frm">
-        <label for="SoundOnId">Enable Sound</label>
-
+        <input type="checkbox" id="EnableSoundId" name="EnableSoundId" class="frm">
+        <label for="EnableSoundId">Enable Sound</label>
         <button id="ResetId" name="Reset">Reload Defaults</button>
     </fieldset>
 
     <fieldset class="info"><legend>Info</legend>
         <div id="VidFreqId"></div>
-        <!-- div>Vid/FPS/CPU: <span id="VidFreqId"></span></div -->
-
         <div>Total in "tune": <span id="TotalTunedId">0</span> / Avg cents: <span id="QualityId">0</span></div>
         <div>Cent range: <span id="MaxRangeId">0</span></div>
         <div>Cent Distribution over Atari Pitches (31 &rarr; 0):
@@ -177,7 +286,6 @@ or when two notes map to the same piano note, but one note is closer to tune."><
     </fieldset>
 
     <fieldset><legend>Output</legend>
-        <!-- button id="PrintPianoId" name="Print" onclick="$('#OptionsId').hide(); window.print()">Print Piano</button -->
         <button id="PrintPageId" name="Print" onclick="window.print()">Print Page</button>
         <input type="checkbox" id="HideUIOnId" name="HideUIOnId" class="frm">
         <label for="HideUIOnId">Hide UI</label>
@@ -185,11 +293,9 @@ or when two notes map to the same piano note, but one note is closer to tune."><
 </div>
 
 <div id="NotesTableContainerId"></div>
-
 <div id="GeometryContainerId"></div>
-<canvas id="GeometryId" width="400" height="400"></canvas>
 
-<div style="display:none;"><img id="BachId" src="./img/cool-bach.png" width="237" height="259" /></div>
+<div style="display:none"><img id="BachId" src="./img/cool-bach.png" width="237" height="259" /></div>
 
 </body>
 </html>

@@ -99,6 +99,7 @@ table.tone-list td span.step {
 }
 table.tone-list .pianonote {
     background-color:white;
+    user-select:none;
 }
 table.tone-list .micronote {
     background-color:rgb(128,128,192);

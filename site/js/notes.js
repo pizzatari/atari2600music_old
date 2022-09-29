@@ -1,4 +1,5 @@
 import {Carousel} from "./carousel.js";
+import * as Instrument from "./instrument.js";
 
 export const NTSC_FREQ          = 315/88*1000*1000;    // MHz
 export const NTSC_FPS           = 60/1.001;            // fields per second
@@ -683,6 +684,8 @@ export class Page {
     static tableId = '';
     static canvasId = '';
 
+    static piano = null;
+
 	// input field => field specific updator
 	static changeHandlers = null;
 	static rangeHandlers = null;
@@ -783,11 +786,48 @@ export class Page {
             Page.notesTable.rebuildNotePairs();
 			Page.render();
         });
+
+		// AudioContext needs to be created by user action
+    	document.getElementById('EnableSoundId').addEventListener('change', (e)=>{
+        	if (e.target.checked && Page.piano == null) {
+            	console.log("Enabling sound");
+            	Page.piano = new Instrument.Piano();
+				Page.assignKeyHandlers();
+        	} else if (e.target.checked && Page.piano != null) {
+            	console.log("Resuming sound");
+            	Page.piano.resume();
+        	} else if (!e.target.checked && Page.piano != null) {
+            	console.log("Suspending sound");
+            	Page.piano.suspend();
+        	}
+    	});
     }
 
+	static assignKeyHandlers() {
+console.log("in assign key handler : piano = " + Page.piano);
+console.log("in assign key handler : notesTable = " + Page.notesTable);
+        // piano key click events
+        if (Page.piano != null) {
+			for (let note of Page.notesTable.getPianoNotes) {
+				let className = 'micronum-' + note.getMicroNum;
+
+console.log("setting key handler " + className + " " + note.getFrequency);
+
+    			let key = document.getElementsByClassName(className)[0];
+				if (key)
+    			key.addEventListener('click', (e)=> {
+console.log("key click " + note.getFrequency);
+            		Page.piano.playFrequency(note.getFrequency, 250);
+    			});
+			}
+		}
+	}
+
 	static render() {
-		if (this.tableId != '')
+		if (this.tableId != '') {
 			Page.renderTable();
+			Page.assignKeyHandlers();
+		}
 		if (this.canvasId != '')
 			Page.renderGeometry();
 
