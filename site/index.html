@@ -1,301 +1,572 @@
 <!DOCTYPE html>
-<html>
-<head>
-
-<base href="../0.4/">
-
+<html> <head> <base href="../0.4/">
 <title>Atari 2600 Music Explorer</title>
 
-<link rel="stylesheet" href="./css/index.css"    media="all" id="ScreenStyleId"/>
-<link rel="stylesheet" href="./css/carousel.css" media="all"/>
+<!-- script src="./js/jquery-3.6.1.min.js"></script -->
 
-<script src="./js/jquery-3.6.1.min.js"></script>
-<script type="module" src="./js/notes.js"></script>
-<script type="module" src="./js/carousel.js"></script>
-<script type="module" src="./js/instrument.js"></script>
+<!--
+<link href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css" rel="stylesheet">
+<link href="https://code.jquery.com/ui/1.13.2/themes/black-tie/jquery-ui.css" rel="stylesheet">
+<link href="https://code.jquery.com/ui/1.13.2/themes/ui-lightness/jquery-ui.css" rel="stylesheet">
+<link href="https://code.jquery.com/ui/1.13.2/themes/overcast/jquery-ui.css" rel="stylesheet">
+<link href="" rel="stylesheet">
+-->
+
+<link href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.4.min.js" integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js" integrity="sha256-lSjKY0/srUM9BE3dPm+c4fBo1dky2v27Gdjm2uoZaL0=" crossorigin="anonymous"></script>
+
+<link href="./css/index.css" rel="stylesheet" id="ScreenStyleId"/>
+<style id="PianoCssId"></style>
+
+<script>
+	window.jt = {}
+</script>
 
 <script type="module">
-import * as Notes from "./js/notes.js"
-import * as Instrument from "./js/instrument.js"
+import { Controller } from "./js/Controller.js"
+import { Options } from "./js/Options.js"
+import { Page } from "./js/UI/Page.js"
+import { MusicConfig } from "./js/Music/Music.js"
+import { TIANotes } from "./js/Music/TIANotes.js"
 
-//let piano = null;
+Options.loadFromStorage();
+Options.writeToForm();
 
-window.addEventListener('DOMContentLoaded', (evt) => {
-    // add styles
-    addBackgroundStyle();
+let musicConfig = new MusicConfig();
 
-    // build page
-    Notes.Options.loadFromStorage();
-    Notes.Options.writeToForm();
-    let notesTable = new Notes.NotesTable(true);
-    Notes.Page.initialize(notesTable, 'NotesTableContainerId', 'GeometryContainerId');
-    Notes.Page.render();
+musicConfig.A4Frequency = Options.A4Freq;
+musicConfig.NumTranspose = Options.Transpose;
+musicConfig.NumMicroTones = Options.NumMicroTones;
+musicConfig.TuningSensitivity = Options.TuningSensitivity;
 
-    document.getElementById('A4FreqId').focus();
-/*
-	document.getElementById('EnableSoundId').addEventListener('change', (e)=>{
-		if (e.target.checked && piano == null) {
-			console.log("Enabling sound");
-			piano = new Instrument.Piano();
-		} else if (e.target.checked && piano != null) {
-			console.log("Resuming sound");
-			piano.resume();
-		} else if (!e.target.checked && piano != null) {
-			console.log("Suspending sound");
-			piano.suspend();
-		}
+let noteSources = [];
+let tones = Options.AtariTones;
+for (let tone of tones) {
+	let src = new TIANotes(musicConfig, { Tone: tone, VideoFormat: Options.VideoFormat });
+	noteSources.push(src);
+}
+
+let controller = new Controller(musicConfig);
+controller.NoteSources = noteSources;
+
+window.addEventListener('DOMContentLoaded', () => {
+	// workaround for jquery tabs "not a bug" bug that mishandles href
+	$("#CenterTableId ul li a").each(function() {
+    	$(this).attr("href", location.href.toString() + $(this).attr("href"));
 	});
+
+	$("#CenterTableId").tabs();
+
+	setupBasicHandlers();
+	controller.start();
+
+/*
+	$('#dialog').dialog();
+	setTimeout(function(){ $('#dialog').dialog('close') }, 10000);
+    dialog = $( "#dialog" ).dialog({
+      autoOpen: false,
+      height: 400,
+      width: 350,
+      modal: true,
+      buttons: {
+        Cancel: function() {
+          dialog.dialog( "close" );
+        }
+      },
+      close: function() {
+        form[ 0 ].reset();
+        allFields.removeClass( "ui-state-error" );
+      }
+    });
 */
 
-/*
-	// assign piano key handlers
-	let key = document.getElementsByClassName('micronum-49')[0];
-	key.addEventListener('click', (e)=> {
-		if (piano != null)
-			piano.playFrequency(440, 250);
+	var atariScreenNotified = false;
+	document.querySelector("body").addEventListener('mousedown', (evt) => {
+    	if(!atariScreenNotified) {
+        	Javatari.screenElement.dispatchEvent(new MouseEvent('mousedown', {
+				bubbles: false,
+				cancelable: true,
+				view: window
+  	    	}));
+        	atariScreenNotified = true;
+    	}
 	});
-*/
 });
 
-function addBackgroundStyle() {
-	let radial = '';
-
-	for (let x = 0; x < 5; x += 0.4) {
-		let xPos = Math.round(Math.sin(x) * 100 + 300);
-		let yPos = Math.round(x * 300 + 300);
-		let stop1 = Math.round(x * 100 + 500);
-		let stop2 = Math.round(stop1 + 10);
-		radial += `radial-gradient(circle at top ${yPos}px left ${xPos}px, rgba(128,128,255,0.05) ${stop1}px, rgba(0,0,128,0.05) ${stop2}px),`;
-	}
-	
-	let css = `.bg-color { background-image: ${radial} linear-gradient(#00f, #f00); }`;
-	$("<style>").prop("type","text/css").prop("media","screen").html(css).appendTo("head");
-	$("#BodyId").addClass("bg-color");
+// Simple UI handling (does not affect data or media IO)
+function setupBasicHandlers() {
+	$('.panel fieldset').click(function(evt){
+		if (evt.target.tagName == 'LEGEND')
+			$('div.collapsible', this).slideToggle();
+	});
 }
-
-function initSound(evt) {
-	console.log("Init audio");
-    try {
-		if(audioCtx == null)
-    		audioCtx = new AudioContext();
-    }
-    catch(e) {
-		console.log(e.toString());
-    	alert('Web Audio API is not supported in this browser');
-    }
-}
-
-function playNote() {
-	console.log("play note");
-	let osc = new OscillatorSample(audioCtx);
-	osc.play();
-}
-
-function OscillatorSample(context) {
-  this.context = context;
-  this.isPlaying = false;
-  //this.canvas = document.querySelector('canvas');
-  this.WIDTH = 640;
-  this.HEIGHT = 240;
-}
-
-OscillatorSample.prototype.play = function() {
-  // Create some sweet sweet nodes.
-  this.oscillator = this.context.createOscillator();
-  this.analyser = this.context.createAnalyser();
-
-  // Setup the graph.
-  this.oscillator.connect(this.analyser);
-  this.analyser.connect(this.context.destination);
-
-  this.oscillator[this.oscillator.start ? 'start' : 'noteOn'](0);
-
-  //requestAnimFrame(this.visualize.bind(this));
-};
-
-OscillatorSample.prototype.stop = function() {
-  this.oscillator.stop(0);
-};
-
-OscillatorSample.prototype.toggle = function() {
-  (this.isPlaying ? this.stop() : this.play());
-  this.isPlaying = !this.isPlaying;
-
-};
-
-OscillatorSample.prototype.changeFrequency = function(val) {
-  this.oscillator.frequency.value = val;
-};
-
-OscillatorSample.prototype.changeDetune = function(val) {
-  this.oscillator.detune.value = val;
-};
-
-OscillatorSample.prototype.changeType = function(type) {
-  this.oscillator.type = type;
-};
-
-/*
-OscillatorSample.prototype.visualize = function() {
-  this.canvas.width = this.WIDTH;
-  this.canvas.height = this.HEIGHT;
-  var drawContext = this.canvas.getContext('2d');
-
-  var times = new Uint8Array(this.analyser.frequencyBinCount);
-  this.analyser.getByteTimeDomainData(times);
-  for (var i = 0; i < times.length; i++) {
-    var value = times[i];
-    var percent = value / 256;
-    var height = this.HEIGHT * percent;
-    var offset = this.HEIGHT - height - 1;
-    var barWidth = this.WIDTH/times.length;
-    drawContext.fillStyle = 'black';
-    drawContext.fillRect(i * barWidth, offset, 1, 1);
-  }
-  requestAnimFrame(this.visualize.bind(this));
-};
-*/
 </script>
 
 </head>
 
-<body id="BodyId">
-
-<h1>Atari 2600 Music Explorer (<a href="https://pizzatari.github.io/atari2600music"
-        title="Canonical link to this site">https://pizzatari.github.io/atari2600music</a>)
+<body>
+<h1 id="HeadingId">Atari 2600 Music Explorer (<span id="VersionId"></span>) (
+	<a href="https://pizzatari.github.io/atari2600music" title="Canonical link to this site">https://pizzatari.github.io/atari2600music</a>)
+	<!-- button>Change View</button -->
 </h1>
 
-<div id="OptionsId" class="form">
-    <fieldset><legend>Atari Options</legend>
-        <select id="VideoFormatId" name="VideoFormat" class="frm">
-        <option value="ntsc">NTSC (60 Hz)</option>
-        <option value="pal">PAL (50 Hz)</option>
-        </select>
-        <label for="VideoFormatId" title="Select the television format: NTSC 60 Hz or PAL 50 Hz">Video/Audio format</label>
+<!-- div id="PageId" -->
+<div>
+	<div class="row">
+		<div id="HorizRoll" class="panel"></div><!-- panel -->
+	</div><!--- Row1 -->
 
-        <select id="AtariPitchId" name="AtariPitch" class="frm">
-        <option value="0">0 or 11 (silence)</option>
-        <option value="1">1 (buzzy high pitch)</option>
-        <option value="2">2 (noisy engine)</option>
-        <option value="3">3 (buzzy engine)</option>
-        <option value="4" selected>4 or 5 (pure high tone)</option>
-        <option value="6">6 or 10 (buzzy pure)</option>
-        <option value="7">7 or 9 (buzzy medium pitch)</option>
-        <option value="8">8 (noise)</option>
-        <option value="12">12 or 13 (pure medium tone)</option>
-        <option value="14">14 (low rumble)</option>
-        <option value="15">15 (loud rumble)</option>
-        </select>
-        <label for="AtariPitchId">Atari tone (AUDC0)</label>
+	<div class="row">
+		<div id="Column1Id" class="column">
+			<div id="OptionsId" class="panel">
+				<fieldset><legend>Atari Options</legend>
+					<div class="collapsible">
+						<select id="VideoFormatId" name="VideoFormat" class="frm">
+						<option value="ntsc">NTSC (60 Hz)</option>
+						<option value="pal">PAL (50 Hz)</option>
+						</select>
+						<label for="VideoFormatId" title="Select the television format: NTSC 60 Hz or PAL 50 Hz">Video/Audio format</label>
 
-        <select id="AtariPitch1Id" name="AtariPitch1" class="frm" disabled>
-        <option value="0">0 or 11 (silence)</option>
-        <option value="1">1 (buzzy high pitch)</option>
-        <option value="2">2 (noisy engine)</option>
-        <option value="3">3 (buzzy engine)</option>
-        <option value="4" selected>4 or 5 (pure high tone)</option>
-        <option value="6">6 or 10 (buzzy pure)</option>
-        <option value="7">7 or 9 (buzzy medium pitch)</option>
-        <option value="8">8 (noise)</option>
-        <option value="12">12 or 13 (pure medium tone)</option>
-        <option value="14">14 (low rumble)</option>
-        <option value="15">15 (loud rumble)</option>
-        </select>
-        <label for="AtariPitch1Id">Atari tone (AUDC1)</label>
-    </fieldset>
+						<select id="AtariTone0Id" name="AtariTone0" class="frm">
+						<option value="0">0 or 11 (silence)</option>
+						<option value="1">1 (buzzy high pitch)</option>
+						<option value="2">2 (noisy engine)</option>
+						<option value="3">3 (buzzy engine)</option>
+						<option value="4" selected>4 or 5 (pure high tone)</option>
+						<option value="6">6 or 10 (buzzy pure)</option>
+						<option value="7">7 or 9 (buzzy medium pitch)</option>
+						<option value="8">8 (noise)</option>
+						<option value="12">12 or 13 (pure medium tone)</option>
+						<option value="14">14 (low rumble)</option>
+						<option value="15">15 (loud rumble)</option>
+						</select>
+						<label for="AtariTone0Id" title="Select first Atari tone between 0 and 15">Atari tone 1 (AUDC)</label>
 
-    <fieldset><legend>Piano Options</legend>
-        <select id="TuningId" name="Tuning" class="frm">
-        <option value="12-TET">12-TET</option>
-        <!-- option value="just">Just</option>
-        <option value="pyth">Pythagorean</option>
-        <option value="mean">Meantone</option>
-        <option value="just">Just</option -->
-        </select>
+						<select id="AtariTone1Id" name="AtariTone1" class="frm">
+						<option value=""></option>
+						<option value="0">0 or 11 (silence)</option>
+						<option value="1">1 (buzzy high pitch)</option>
+						<option value="2">2 (noisy engine)</option>
+						<option value="3">3 (buzzy engine)</option>
+						<option value="4" selected>4 or 5 (pure high tone)</option>
+						<option value="6">6 or 10 (buzzy pure)</option>
+						<option value="7">7 or 9 (buzzy medium pitch)</option>
+						<option value="8">8 (noise)</option>
+						<option value="12">12 or 13 (pure medium tone)</option>
+						<option value="14">14 (low rumble)</option>
+						<option value="15">15 (loud rumble)</option>
+						</select>
+						<label for="AtariTone1Id" title="Select second Atari tone">Atari tone 2 (AUDC)</label>
 
-        <label for="TuningMethodId">Tuning method</label>
-        <input type="number" id="A4FreqId" name="A4Freq" value="440.0" size="8" min="1.0" class="frm">
-        <label for="A4Freq">A4 frequency (Hz)</label>
-        <input type="range" id="A4FreqRangeId" name="A4FreqRange" value="440" min="100" max="1000" class="frm">
-        <br>
+						<select id="AtariTone2Id" name="AtariTone2" class="frm">
+						<option value=""></option>
+						<option value="0">0 or 11 (silence)</option>
+						<option value="1">1 (buzzy high pitch)</option>
+						<option value="2">2 (noisy engine)</option>
+						<option value="3">3 (buzzy engine)</option>
+						<option value="4" selected>4 or 5 (pure high tone)</option>
+						<option value="6">6 or 10 (buzzy pure)</option>
+						<option value="7">7 or 9 (buzzy medium pitch)</option>
+						<option value="8">8 (noise)</option>
+						<option value="12">12 or 13 (pure medium tone)</option>
+						<option value="14">14 (low rumble)</option>
+						<option value="15">15 (loud rumble)</option>
+						</select>
+						<label for="AtariTone2Id" title="Select third Atari tone">Atari tone 3 (AUDC)</label>
+					</div>
+				</fieldset>
 
-        <input type="number" id="TransposeId" name="Transpose" value="0" size="5" class="frm">
-        <label for="TransposeId">Transpose (cents)</label>
-        <input type="range" id="TransposeRangeId" name="TransposeRange" value="0" min="-100" max="100" class="frm">
-        <br>
+				<fieldset><legend>Piano Options</legend>
+					<div class="collapsible">
+						<select id="TuningMethodId" name="TuningMethod" class="frm" disabled>
+						<option value="12-tet">12-TET</option>
+						<!-- option value="just">Just</option>
+						<option value="pyth">Pythagorean</option>
+						<option value="mean">Meantone</option>
+						<option value="just">Just</option -->
+						</select>
+						<label for="TuningMethodId" title="12 tone equal temperament">Tuning method</label>
 
-        <input type="number" id="NumMicroTonesId" name="NumMicroTones" value="1" size="5" min="1" class="frm">
-        <label for="NumMicroTonesId">Microtones per key</label>
-        <input type="range" id="NumMicroTonesRangeId" name="NumMicroTonesRange" value="1" min="1" max="11" class="frm">
-        <br>
+						<input type="number" id="A4FreqId" name="A4Freq" value="440.0" size="8" min="1.0" class="frm">
+						<label for="A4FreqId" title="Set the base frequency for the A4 key">A4 frequency (Hz)</label>
+						<input type="range" id="A4FreqRangeId" name="A4FreqRange" value="440" min="100" max="1000" class="frm">
+						<br/>
 
-        <input type="number" id="TuningSensitivityId" name="TuningSensitivity" value="50" size="8" min="0" max="50" class="frm">
-        <label for="TuningSensitivityId">Tuning sensitivity (cents)</label>
-        <input type="range" id="TuningSensitivityRangeId" name="TuningSensitivityRange" value="50" min="0" max="50" class="frm">
-    </fieldset>
+						<input type="number" id="TransposeId" name="Transpose" value="0" size="5" class="frm">
+						<label for="TransposeId" title="Transpose piano frequency up or down by this value">Transpose (cents)</label>
+						<input type="range" id="TransposeRangeId" name="TransposeRange" value="0" min="-100" max="100" class="frm">
+						<br/>
 
-    <fieldset><legend>Result Options</legend>
-        <input type="checkbox" id="TuningGradientId" name="TuningGradientId" value="Yes" class="frm" checked>
-        <label for="TuningGradientId">Color Gradient</label>
-        <input type="checkbox" id="PrintBlackKeysId" name="PrintBlackKeys" value="Yes" class="frm">
-        <label for="PrintBlackKeysId" title="Print black keys as table rows"><span style="font-size:125%;">&sharp;&flat;</span> as rows</label>
-        <input type="checkbox" id="ShowBlackKeysId" name="ShowBlackKeys" value="Yes" class="frm">
-        <label for="ShowBlackKeysId" title="Show black keys as table rows"><span style="font-size:125%;">&sharp;&flat;</span> black keys</label>
-        <input type="checkbox" id="PrintGeometryId" name="PrintGeometry" value="Yes" class="frm" checked>
-        <label for="PrintGeometryId">Geometry</label>
-        <input type="checkbox" id="PrintFrequencyId" name="PrintFrequency" value="Yes" class="frm" checked>
-        <label for="PrintFrequencyId">Freq. </label>
-        <!--
-        <input type="checkbox" id="InnerJoinId" name="InnerJoinId" value="Yes" checked>
-        <label for="InnerJoinId">Inner join</label>
-        <input type="checkbox" id="ExpandPianoId" name="ExpandPiano" value="Yes" class="frm">
-        <label for="ExpandPianoId" title="Expand piano to include out of range Atari notes">Expand</label>
-        -->
-        <input type="checkbox" id="ShrinkPianoId" name="ShrinkPiano" value="Yes" class="frm">
-        <label for="ShrinkPianoId" title="Shrink piano to fit to Atari note range">Shrink</label>
-        <input type="checkbox" id="JumpToFirstId" name="JumpToFirst" value="Yes" class="frm">
-        <label for="JumpToFirstId" title="Scroll to the first Atari note">Scroll to Atari</label>
-        <br>
-        <input type="checkbox" id="EnableSoundId" name="EnableSoundId" class="frm">
-        <label for="EnableSoundId">Enable Sound</label>
-        <button id="ResetId" name="Reset">Reload Defaults</button>
-    </fieldset>
+						<input type="number" id="NumMicroTonesId" name="NumMicroTones" value="1" size="5" min="1" class="frm">
+						<label for="NumMicroTonesId" title="Insert evenly spaced micro notes between piano keys">Microtones per key</label>
+						<input type="range" id="NumMicroTonesRangeId" name="NumMicroTonesRange" value="1" min="1" max="11" class="frm">
+						<br/>
 
-    <fieldset class="info"><legend>Info</legend>
-        <div id="VidFreqId"></div>
-        <div>Total in "tune": <span id="TotalTunedId">0</span> / Avg cents: <span id="QualityId">0</span></div>
-        <div>Cent range: <span id="MaxRangeId">0</span></div>
-        <div>Cent Distribution over Atari Pitches (31 &rarr; 0):
-            <canvas id="DistributionId" width="320" height="70"
-                title="X axis is Atari pitch. Y axis is cents. Red gaps indicate a dropped note.
-Notes are dropped when they're below the selected tuning sensitivity
-or when two notes map to the same piano note, but one note is closer to tune."></canvas>
-            <canvas id="Distribution2Id" width="320" height="35"
-                title="X axis is Atari pitch. Y axis is cents. Red gaps indicate a dropped note.
-Notes are dropped when they're below the selected tuning sensitivity
-or when two notes map to the same piano note, but one note is closer to tune."></canvas>
-        </div>
-    </fieldset>
+						<input type="number" id="TuningSensitivityId" name="TuningSensitivity" value="50" size="8" min="0" max="50" class="frm">
+						<label for="TuningSensitivityId" title="Exclude notes outside this threshold">Tuning Threshold (cents)</label>
+						<input type="range" id="TuningSensitivityRangeId" name="TuningSensitivityRange" value="50" min="0" max="50" class="frm">
+					</div>
+				</fieldset>
 
-    <fieldset><legend>"Tuned" Notes</legend>
-        <div id="NotesListId"></div>
-    </fieldset>
+				<fieldset><legend>Result Options</legend>
+					<div class="collapsible">
+						<input type="checkbox" id="TuningGradientId" name="TuningGradientId" value="Yes" class="frm" checked>
+						<label for="TuningGradientId" title="Show cent deviation as a color gradient">Gradient</label>
+						<input type="checkbox" id="PrintBlackKeysId" name="PrintBlackKeys" value="Yes" class="frm">
+						<label for="PrintBlackKeysId" title="Print black keys as table rows"><span style="font-size:125%;">&sharp;&flat;</span> as rows</label>
+						<!--
+						<input type="checkbox" id="ShowBlackKeysId" name="ShowBlackKeys" value="Yes" class="frm">
+						<label for="ShowBlackKeysId" title="Show black keys as table rows"><span style="font-size:125%;">&sharp;&flat;</span> black keys</label>
+						-->
+						<input type="checkbox" id="PrintGeometryId" name="PrintGeometry" value="Yes" class="frm" checked disabled>
+						<label for="PrintGeometryId">Geometry</label>
 
-    <fieldset><legend>Major Chords</legend>
-        <div id="ChordsListId"></div>
-    </fieldset>
+						<br/>
 
-    <fieldset><legend>Output</legend>
-        <button id="PrintPageId" name="Print" onclick="window.print()">Print Page</button>
-        <input type="checkbox" id="HideUIOnId" name="HideUIOnId" class="frm">
-        <label for="HideUIOnId">Hide UI</label>
-    </fieldset>
-</div>
+						<input type="checkbox" id="PrintFrequencyId" name="PrintFrequency" value="Yes" class="frm" checked>
+						<label for="PrintFrequencyId" title="Show frequency values">Freq. </label>
+						<!--
+						<input type="checkbox" id="InnerJoinId" name="InnerJoinId" value="Yes" checked>
+						<label for="InnerJoinId">Inner join</label>
+						<input type="checkbox" id="ExpandPianoId" name="ExpandPiano" value="Yes" class="frm">
+						<label for="ExpandPianoId" title="Expand piano to include out of range Atari notes">Expand</label>
+						-->
+						<input type="checkbox" id="ShrinkPianoId" name="ShrinkPiano" value="Yes" class="frm">
+						<label for="ShrinkPianoId" title="Shrink piano to fit to Atari note range">Shrink</label>
+						<input type="checkbox" id="JumpToFirstId" name="JumpToFirst" value="Yes" class="frm">
+						<label for="JumpToFirstId" title="Scroll to the first Atari note">Scroll</label>
+						<select id="CentTypeId" class="frm" style="width:75px" disabled>
+						<option value="A">All</option>
+						<option value="P">Positive</option>
+						<option value="N">Negative</option>
+						</select>
+						<label for="CentTypeId" title="Filter notes with positive or negative cents">Cent Filter</label>
 
-<div id="NotesTableContainerId"></div>
-<div id="GeometryContainerId"></div>
+						<button id="ResetId" name="Reset">Reload Defaults</button>
+					</div>
+				</fieldset>
+
+				<!--
+				<fieldset><legend>Output</legend>
+					<div class="collapsible">
+						<button id="PrintPageId" name="Print" onclick="window.print()">Print Page</button>
+						<input type="checkbox" id="HideUIOnId" name="HideUIOnId" class="frm">
+						<label for="HideUIOnId">Hide UI</label>
+					</div>
+				</fieldset>
+				-->
+			</div><!-- panel -->
+
+			<div class="panel">
+				<fieldset id="MidiId"><legend>MIDI</legend>
+					<div class="collapsible">
+						<select id="InstrumentId">
+							<option value="piano">Piano</option>
+							<option value="tia">Atari TIA</option>
+						</select>
+						<label for="InstrumentId">Instrument</label>
+						<br/>
+						
+						<div id="PianoOptsId">
+							<select id="pianotypeid" class="frm">
+								<!--option value="simulated">Simulated</option-->
+								<option value="sawtooth">Sawtooth</option>
+								<option value="triangle">Triangle</option>
+								<option value="square">Square</option>
+								<option value="sine">Sine</option>
+							</select>
+							<label for="PianoTypeId">Piano Type</label>
+							<br/>
+
+							<select id="FrequencySelectId" name="FrequencySelectId" class="frm" style="">
+							<option value="piano">Use normal frequencies</option>
+							<option value="tia">Use TIA frequencies</option>
+							</select>
+							<label for="FrequencySelectId">Piano Frequency</label>
+							<br/>
+						</div>
+<!--
+						<select id="SoundTypeId" name="SoundType" class="frm" style="">
+						<option value="piano">Piano</option>
+						<option value="tia">Atari TIA</option>
+						<option value="sawtooth">Sawtooth</option>
+						<option value="triangle">Triangle</option>
+						<option value="square">Square</option>
+						<option value="sine">Sine</option>
+						</select>
+						<label for="SoundTypeId">Playback instrument</label>
+						<br/>
+
+						<select id="FrequencySelectId" name="FrequencySelectId" class="frm" style="">
+						<option value="piano">Piano</option>
+						<option value="tia">Atari TIA</option>
+						</select>
+						<label for="FrequencySelectId">Use frequency</label>
+						<br/>
+-->
+
+						<input type="range" id="VolumeId" name="Volume" value="64" min="0" max="127" class="frm">
+						<legend for="VolumeId2">Volume -/+</legend>
+						<br/>
+
+						<p>Midi inputs</p>
+						<select id="MidiInputDeviceId" name="MidiInputDevice" class="frm highlight-alert" style="width:220px" multiple="multiple">
+						<option value="">(none detected)</option>
+						</select>
+						<button id="RescanId">Re-Scan</button>
+						<br/>
+
+						<div style="display:none">
+							<p>Midi outputs</p>
+							<select id="MidiOutputDeviceId" name="MidiOutputDevice" class="frm" style="width:220px" multiple="multiple">
+							<option value="">(none detected)</option>
+							</select>
+							<br/>
+						</div>
+
+						<input type="number" id="PolyphonyId" name="Polyphony" class="frm" value="16" min="1" max="16">
+						<label for="PolyphonyId">Polyphony</label>
+						<br/>
+
+						<input type="checkbox" id="VelocityId" name="Velocity" class="frm" value="Yes" checked="checked">
+						<label for="VelocityId">Enable key velocity</label>
+						<br/>
+						<br/>
+
+						<p>MIDI may not be enabled by default for some browsers. You may need to approve permissions.<br/><br/>
+						Please restart the browser if you plug in or unplug MIDI devices when using Windows 10.<br/><br/>
+						Sustain functionality requires a sustain pedal or sustain button on your keyboard.
+						</p>
+
+						<!--
+						<p>If you do not have a physical MIDI keyboard, try loopMIDI and VMPK (Virtual MIDI Piano Keyboard) for a virtual solution.<br/><br/>
+						MIDI may not be enabled by default for Firefox or other browsers. You may need to approve permissions or configure settings.<br/><br/>
+						Edge and Chrome browsers disable access to software synths (i.e. Microsoft GS Wavetable).<br/><br/>
+						Restart the browser if you plug-in or unplug MIDI devices.
+						</p>
+						-->
+					</div>
+				</fieldset>
+			</div><!-- panel -->
+
+			<div class="panel">
+				<fieldset><legend>News &amp; Updates</legend>
+					<div class="collapsible">
+						<p>Version 0.5 released. Updates include:</p>
+						<ul>
+						<li>New layout</li>
+						<li>Multiple selectable Atari tones</li>
+						<li>MIDI and Mouse as instruments</li>
+						<li>Sustain pedal (TODO)</li>
+						<li>Atari TIA sound emulation (TODO)</li>
+						<li>Note distribution charts</li>
+						</ul>
+					</div>
+				</fieldset>
+			</div><!-- panel -->
+
+			<div class="panel">
+				<fieldset><legend>Music Theory</legend>
+					<div class="collapsible">
+						<p>My list of Music Theory resources relevant to Atari Music Explorer:</p>
+						<ul>
+						<li><a target="_blank"
+								href="https://www.amazon.com/gp/product/0882848186/">Alfred's Adult All-In-One Course: Lesson-Theory-Technic: Level 1</a>
+							<br/>Quintessential piano lesson book
+						</li>
+						<li><a target="_blank"
+								href="https://www.youtube.com/watch?v=e4gizue_ULg&list=PL8hZtgRyL9WRWJLlIUPl-ydiDc8CZ_SJK">Lets Play Piano Methods</a>
+							<br/>Demonstrations of pieces in Alfred's All-In-One course
+						</li>
+						<li><a target="_blank"
+								href="https://www.youtube.com/watch?v=r7aQQQsvxho">Why are there no black notes in these gaps?</a>
+							<br/>
+						</li>
+						<li><a target="_blank"
+								href="https://www.youtube.com/watch?v=lvmzgVtZtUQ">Why Does Music Only Use 12 Different Notes?</a>
+							<br/>12 tone equal temperment (12-TET)
+						</li>
+						<li><a target="_blank"
+								href="https://www.youtube.com/watch?v=7JhVcGtT8z4">Why pianos and guitars aren't really in tune</a>
+							<br/>Equal temperment (12-TET) is not perfect tuning
+						</li>
+						<li><a target="_blank"
+								href="https://www.youtube.com/watch?v=feeB8ci38jE">Pythagorean tuning</a>
+							<br/>Stacking perfect fifths
+						</li>
+						<li><a target="_blank"
+								href="https://www.youtube.com/watch?v=UcIxwrZV10A">The Geometry of Consonance: Music and Mathematics</a>
+							<br/>Five (important) musical properties
+						</li>
+						<li><a target="_blank"
+								href="https://www.youtube.com/watch?v=EQMC6_N9y7U">The Circle of Fifths for SONGWRITING</a>
+							<br/>Visualizing the circle of fifths, chords, and modes.
+						</li>
+						<li><a target="_blank"
+								href="https://www.youtube.com/watch?v=1FRmmnKSBdg">MODES: How to Understand &amp; Actually Use Them</a>
+							<br/>Relating modes to the underlying major scale versus a rotation of its parent scale
+						</li>
+						<li><a target="_blank"
+								href="https://www.youtube.com/watch?v=FNl6bb755Z4">How to voice lead a chord progression</a>
+							<br/>
+						</li>
+						<li><a target="_blank"
+								href="https://www.youtube.com/watch?v=2kH7ncKjrF0">Modes of Minor and other Scales | Maths and Music</a>
+							<br/>Thinking about modes mathematically
+						</li>
+						<li><a target="_blank"
+								href="https://www.youtube.com/watch?v=JiNKlhspdKg">New Horizons in Music: Polyrhythms</a>
+							<br/>Pitch and rhythm are the same thing
+						</li>
+						<li><a target="_blank"
+								href="https://www.youtube.com/watch?v=d-Vb_xq7XG8">This piece only has ONE note...</a>
+							<br/>Proof you can keep it simple
+						</li>
+						<li><a target="_blank"
+								href="https://en.wikipedia.org/wiki/Piano_key_frequencies">Piano key frequencies</a>
+						</li>
+						<!--
+						<li><a target="_blank"
+								href=""></a>
+							<br/>
+						</li>
+						-->
+						</ul>
+					</div>
+				</fieldset>
+			</div><!-- panel -->
+		</div><!-- Column1 -->
+
+		<div id="Column2Id" class="column">
+			<div class="ui-tabs" id="CenterTableId">
+				<ul class="ui-tabs-nav">
+					<li><a href="#PianoTab">Note Table</a></li>
+					<li><a href="#RecorderTab">Recorder</a></li>
+					<li><a href="#EmulatorTab">Emulator</a></li>
+					<!--
+					<li><a href="#AtariTab1">Atari 1</a></li>
+					<li><a href="#ScalesTabId">Scales</a></li>
+					<li><a href="#ChordsTabId">Chords</a></li>
+					<li><a href="#CadencesTabId">Cadences</a></li>
+					<li><a href="#ChartsTabId">Charts</a></li>
+					-->
+				</ul>
+
+				<div id="PianoTab">
+					<div class="panel" id="VertRoll"></div>
+				</div>
+
+				<div id="RecorderTab">
+					<div class="panel"></div>
+				</div>
+
+				<div id="EmulatorTab">
+        			<div id="javatari" style="text-align: center; margin: 20px auto 0; padding: 0 10px;">
+            			<div id="javatari-screen" style="box-shadow: 2px 2px 10px rgba(0, 0, 0, .7);"></div>
+        			</div>
+				</div>
+
+				<!-- 
+				<div id="AtariTab1">
+					<p>(notes here)</p>
+				</div>
+
+				<div id="ScalesTabId">
+					<p>(scales here)</p>
+				</div>
+
+				<div id="ChordsTabId">
+					<p>(chords here)</p>
+				</div>
+
+				<div id="CadencesTabId">
+					<p>(cadences here)</p>
+				</div>
+
+				<div id="ChartsTabId">
+					<p>(charts here)</p>
+				</div>
+				-->
+			</div>
+		</div><!--- Column2 -->
+
+		<div id="Column3Id" class="column">
+			<div class="panel">
+				<fieldset class="info"><legend>Info</legend>
+					<div class="collapsible">
+						<div id="VidFreqId"></div>
+						<div title="Total number of tuned notes under the tuning sensitivity threshold.">Total tuned: <span id="TotalTunedId">0</span></div>
+						<div title="Range of cents from min to max. Delta difference between min and max.">Cent range: <span id="MaxRangeId">0</span></div>
+						<div title="Average cents over plus/minus and absolute value.">Avg cents: <span id="AvgCentsId">0</span> |<span id="AvgAbsCentsId">0</span>|</div>
+						<div title="Frequency of the last note played">Note Freq: <span id="PlayedNoteId">(waiting)</span></div>
+						<br/>
+
+						<div><span>Cents over Atari pitch</span>
+							<canvas id="DistributionId" width="320" height="70"
+title="Cents (y-axis) over Atari pitch (x-axis). Red gaps indicate dropped notes. Dropped notes exceeded the tuning sensitivity or 
+multiple Atari notes mapped to the same piano note. The best note is chosen and worse notes dropped."></canvas>
+							<canvas id="Distribution2Id" width="320" height="35"
+title="Same as above, but as absolute value."></canvas>
+							<span>Cents over piano key</span>
+							<canvas id="Distribution3Id" width="320" height="50"
+title="Cents (y-axis) over piano key (x-axis). Red gaps indicate dropped notes. Dropped notes exceeded the tuning sensitivity or 
+multiple Atari notes mapped to the same piano note. The best note is chosen and worse notes dropped."></canvas>
+							<canvas id="Distribution4Id" width="320" height="35"
+title="Same as above, but as absolute value."></canvas>
+						</div>
+					</div>
+				</fieldset>
+
+				<fieldset><legend>"Tuned" Notes</legend>
+					<div id="TunedNotesListId"></div>
+				</fieldset>
+
+				<fieldset><legend>Major Chords</legend>
+					<div id="MajorChords"></div>
+				</fieldset>
+
+				<fieldset><legend>Major Scales</legend>
+					<div id="Majorscales"></div>
+				</fieldset>
+
+				<fieldset><legend>Minor Chords</legend>
+					<div id="MinorChords"></div>
+				</fieldset>
+
+				<fieldset><legend>Minor Scales</legend>
+					<div id="Minorscales"></div>
+				</fieldset>
+
+				<fieldset><legend>Cadences</legend>
+					<div id="Cadences"></div>
+				</fieldset>
+			</div><!-- panel -->
+
+			<div class="panel">
+				<fieldset><legend>Console</legend>
+					<div class="collapsible">
+						<div id="ConsoleId"></div>
+					</div>
+				</fieldset>
+			</div><!-- panel -->
+		</div><!--- Column3 -->
+	</div><!--- Row2 -->
+</div><!-- Page -->
+
+<script src="/0.4/javatari.js/release/stable/5.0/embedded/javatari.js"></script>
+<!-- script>Javatari.CARTRIDGE_URL = "/0.4/Studio2600.bin"</script -->
+<!-- script>Javatari.CARTRIDGE_URL = "/0.4/copjustice.bin"</script -->
+<script>Javatari.CARTRIDGE_URL = "/0.4/atari2600/NTSC.bin"</script>
+
+
+<div id="GeometryContainerId" class="panel"></div>
 
 <div style="display:none"><img id="BachId" src="./img/cool-bach.png" width="237" height="259" /></div>
+
+<div id="dialog" title="Basic dialog">
+	  <p>This is the default dialog which is useful for displaying information. The dialog window can be moved, resized and closed with the &apos;x&apos; icon.</p>
+</div>
 
 </body>
 </html>

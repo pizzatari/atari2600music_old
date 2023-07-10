@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html> <head> <base href="../0.4/">
+<title>Atari 2600 Music Explorer</title>
+
+<link rel="stylesheet" href="./css/index.css"    media="all" id="ScreenStyleId"/>
+<link rel="stylesheet" href="./css/carousel.css" media="all"/>
+
+<script src="./js/jquery-3.6.1.min.js"></script>
+<script type="module" src="./js/UI/carousel.js"></script>
+<!-- script type="module" src="./js/nw.js"></script -->
+<script type="module">
+import { Options } from "./js/Data/Options.js"
+import { Music } from "./js/Music/Music.js"
+import { PianoMap } from "./js/old/PianoMap.js"
+import { TIAGenerator, NTSCMode, PALMode } from "./js/Music/TIAGenerator.js"
+import { PianoGenerator } from "./js/Music/PianoGenerator.js"
+import { Page } from "./js/UI/Page-old.js"
+import { AudioOutput } from "./js/Output/AudioOutput.js"
+import { MidiParser } from "./js/Input/MidiParser.js"
+
+// old
+//import * as Notes from "./js/notes.js"
+import * as Instrument from "./js/Music/Instrument.js"
+
+// test
+//import * as NW from "./js/nw.js"
+//import { SequenceMatch } from "./js/Match/SequenceMatch.js"
+
+
+let midi = null; // global MIDIAccess object
+//let instrument = new Instrument.Piano();
+let audio = new AudioOutput();
+let midiParser = null;
+let audioSuspended = true;
+
+try {
+
+    document.querySelector('.panel #ConsoleId').innerHTML += '<p>Web Audio: [<span class="ok">OK</span>]</p>';
+} catch(e) {
+    document.querySelector('.panel #ConsoleId').innerHTML += '<p>Web Audio: [<span class="fail">FAIL</span>]</p>';
+}
+
+//midiParser = new MidiParser(onHandler, offHandler);
+midiParser = new MidiParser(function() {}, function() {});
+
+window.addEventListener('DOMContentLoaded', (evt) => {
+	var version = window.location.pathname.replace(/\/([0-9.]+).*/, "$1");
+	document.getElementById("VersionId").innerHTML = version;
+
+
+    //alert("html=\n" + $(obj).find('#OptionsId').html() );
+    // add styles
+    //addBackgroundStyle();
+
+    /* TODO:
+        * Add option for filtering atari notes with negative or positive cent values
+          and showing next best positive or negative note.
+        * Expand range of piano beyond 88 keys.
+		* Implement MIDi input keyboard
+		* Integrate TIA sound emulation
+    */
+
+    Options.loadFromStorage();
+    Options.writeToForm();
+
+    Music.A4Frequency = Options.A4Freq;
+    Music.NumTranspose = Options.Transpose;
+    Music.NumMicroTones = Options.NumMicroTones;
+
+	audio.Polyphony = 16; //Options.Polyphony;
+
+    let atari = new TIAGenerator();
+    let piano = new PianoGenerator();
+
+    let atariNotes = atari.getNotes(Options.AtariTones[0]);
+    let pianoNotes = piano.getNotes();
+
+    var pianoMap = new PianoMap(pianoNotes, atariNotes);
+    var page = new Page(pianoMap);
+
+	page.PianoUpdater = () => {
+    	pianoNotes = piano.getNotes();
+		atariNotes = pianoMap.AtariNotes;
+		pianoMap = new PianoMap(pianoNotes, atariNotes);
+		page.PianoMap = pianoMap;
+	};
+	
+	page.AtariUpdater = () => {
+    	pianoNotes = pianoMap.PianoNotes;
+    	atariNotes = atari.getNotes(Options.AtariTones);
+		pianoMap = new PianoMap(pianoNotes, atariNotes);
+		page.PianoMap = pianoMap;
+	}
+	
+	page.MapUpdater = () => {
+    	pianoNotes = piano.getNotes();
+    	atariNotes = atari.getNotes(Options.AtariTones);
+		pianoMap = new PianoMap(pianoNotes, atariNotes);
+		page.PianoMap = pianoMap;
+	};
+		
+    document.getElementById('A4FreqId').focus();
+
+	// fyi: software=true does not work to enable Microsoft GS Wavetable
+	navigator.requestMIDIAccess({'software':true}).then(
+		function(midiAccess) {
+			midi = midiAccess;
+
+			console.log("Web Midi API initialized");
+        	document.querySelector('.panel #ConsoleId').innerHTML += '<p>Web Midi: [<span class="ok">OK</span>]</p>';
+
+  			if (midiAccess.inputs.size > 0) {
+				let ary = [];
+  				for (let entry of midiAccess.inputs) {
+					ary.push(entry[1]);
+					console.log("Found MIDI input device: " + entry[1].name);
+				}
+				page.MidiInputs = ary;
+			}
+
+  			if (midiAccess.outputs.size > 0) {
+				let ary = [];
+  				for (let entry of midiAccess.outputs) {
+					ary.push(entry[1]);
+					console.log("Found MIDI output device: " + entry[1].name);
+				}
+				page.MidiOutputs = ary;
+			}
+
+			let inputs = midiAccess.inputs.values();
+			for (var input = inputs.next(); input && !input.done; input = inputs.next()) {
+    			input.value.onmidimessage = onMIDIMessage;
+			}
+
+		},
+		function(msg) {
+			console.error(`Failed to initialize Web Midi API - ${msg}`);
+        	document.querySelector('.panel #ConsoleId').innerHTML += '<p>Web Midi: [<span class="fail">FAIL</span>]</p>';
+		}
+	);
+
+
+/*
+    var notes = [ 'C', 'E', 'G' ];
+    var input = [ 'C', 'E', 'G', 'B', 'F', 'C', 'E', 'G' ];
+
+    var seq = new SequenceMatch(notes);
+
+    for (var i = 0; i < input.length; i++) {
+        seq.Add(input[i]);
+
+        if (seq.IsMatch())
+            console.log("Is match = true");
+        else
+            console.log("Is match = false");
+    }
+*/
+
+
+/*
+    // testing nw search
+    var pat = "ABCD";
+    var str = "EFGG";
+
+    var r = NW.nw(pat, str);
+    console.log(r[0]);
+    console.log(r[1]);
+*/
+
+
+	function playKey(evt, audio, pair) {
+		if (audio != null) {
+			audio.playTimedNote(pair.piano.frequency, 250);
+
+            setTimeout(function() {
+                // workaround for delay in audio changing state
+                if (audioSuspended && audio.State == 'running') {
+                    document.querySelector('.panel #ConsoleId').innerHTML += `<p>Web Audio: ${audio.State}</p>`;
+                    audioSuspended = false; 
+                }
+            }, 500);
+		}
+	}
+
+	// assign piano key handlers
+	for (let [microId, pair] of pianoMap.JoinedMap) {
+		let onClick = (evt) => playKey(evt, audio, pair);	// passing args via closure
+		let id = `.m_${microId}`;
+		let key = document.querySelector(id);
+
+		key.addEventListener('click', onClick);
+	}
+
+
+	function onMIDIMessage(message) {
+		if (audio.state == 'suspended')
+			audio.resume();
+
+		midiParser.parse(message);
+
+		if (audio != null) {
+			if (midiParser.NoteOn) {
+				audio.playNote(Music.MidiFrequency(midiParser.NoteKey), (midiParser.Velocity**2)/(127**2));
+
+			} else if (midiParser.NoteOff) {
+				audio.stopNote(Music.MidiFrequency(midiParser.NoteKey), 0.0);
+
+			} else if (midiParser.ControlOn) {
+			} else if (midiParser.ControlOff) {
+			}
+		}
+	}
+
+	function onHandler() {
+	}
+
+	function offHandler() {
+	}
+
+    if (audio.State == 'suspended') {
+        document.querySelector('.panel #ConsoleId').innerHTML += `<p>Web Audio: mouse click piano to activate sound</p>`;
+        audioSuspended = true;
+    }
+});
+
+/*
+function addBackgroundStyle() {
+	let radial = '';
+
+	for (let x = 0; x < 5; x += 0.4) {
+		let xPos = Math.round(Math.sin(x) * 100 + 300);
+		let yPos = Math.round(x * 300 + 300);
+		let stop1 = Math.round(x * 100 + 500);
+		let stop2 = Math.round(stop1 + 10);
+		radial += `radial-gradient(circle at top ${yPos}px left ${xPos}px, rgba(128,128,255,0.05) ${stop1}px, rgba(0,0,128,0.05) ${stop2}px),`;
+	}
+	
+	let css = `.bg-color { background-image: ${radial} linear-gradient(#00f, #f00); }`;
+	$("<style>").prop("type","text/css").prop("media","screen").html(css).appendTo("head");
+	$("body").addClass("bg-color");
+}
+
+function initSound(evt) {
+	console.log("Init audio");
+    try {
+		if(audioCtx == null)
+    		audioCtx = new AudioContext();
+    }
+    catch(e) {
+		console.log(e.toString());
+    	alert('Web Audio API is not supported in this browser');
+    }
+}
+
+function playNote() {
+	console.log("play note");
+	let osc = new OscillatorSample(audioCtx);
+	osc.play();
+}
+
+function OscillatorSample(context) {
+  this.context = context;
+  this.isPlaying = false;
+  //this.canvas = document.querySelector('canvas');
+  this.WIDTH = 640;
+  this.HEIGHT = 240;
+}
+
+OscillatorSample.prototype.play = function() {
+  // Create some sweet sweet nodes.
+  this.oscillator = this.context.createOscillator();
+  this.analyser = this.context.createAnalyser();
+
+  // Setup the graph.
+  this.oscillator.connect(this.analyser);
+  this.analyser.connect(this.context.destination);
+
+  this.oscillator[this.oscillator.start ? 'start' : 'noteOn'](0);
+
+  //requestAnimFrame(this.visualize.bind(this));
+};
+
+OscillatorSample.prototype.stop = function() {
+  this.oscillator.stop(0);
+};
+
+OscillatorSample.prototype.toggle = function() {
+  (this.isPlaying ? this.stop() : this.play());
+  this.isPlaying = !this.isPlaying;
+
+};
+
+OscillatorSample.prototype.changeFrequency = function(val) {
+  this.oscillator.frequency.value = val;
+};
+
+OscillatorSample.prototype.changeDetune = function(val) {
+  this.oscillator.detune.value = val;
+};
+
+OscillatorSample.prototype.changeType = function(type) {
+  this.oscillator.type = type;
+};
+*/
+
+/*
+OscillatorSample.prototype.visualize = function() {
+  this.canvas.width = this.WIDTH;
+  this.canvas.height = this.HEIGHT;
+  var drawContext = this.canvas.getContext('2d');
+
+  var times = new Uint8Array(this.analyser.frequencyBinCount);
+  this.analyser.getByteTimeDomainData(times);
+  for (var i = 0; i < times.length; i++) {
+    var value = times[i];
+    var percent = value / 256;
+    var height = this.HEIGHT * percent;
+    var offset = this.HEIGHT - height - 1;
+    var barWidth = this.WIDTH/times.length;
+    drawContext.fillStyle = 'black';
+    drawContext.fillRect(i * barWidth, offset, 1, 1);
+  }
+  requestAnimFrame(this.visualize.bind(this));
+};
+*/
+
+
+function listInputsAndOutputs( midiAccess ) {
+  for (var entry of midiAccess.inputs) {
+    var input = entry[1];
+    console.log( "Input port [type:'" + input.type + "'] id:'" + input.id +
+      "' manufacturer:'" + input.manufacturer + "' name:'" + input.name +
+      "' version:'" + input.version + "'" );
+  }
+
+  for (var entry of midiAccess.outputs) {
+    var output = entry[1];
+    console.log( "Output port [type:'" + output.type + "'] id:'" + output.id +
+      "' manufacturer:'" + output.manufacturer + "' name:'" + output.name +
+      "' version:'" + output.version + "'" );
+  }
+}
+
+function populateMidiInputsList(midiAccess) {
+	let select = document.getElementById('MidiInputDeviceId');
+
+  	if (midiAccess.inputs.size <= 0)
+		return;
+
+	select.options.length = 0;
+  	for (let entry of midiAccess.inputs) {
+		let input = entry[1];
+
+		select.add(new Option(input.name, input.id));
+	}
+}
+
+function populateMidiOutputsList(midiAccess) {
+	let select = document.getElementById('MidiOutputDeviceId');
+
+  	if (midiAccess.outputs.size <= 0)
+		return;
+
+	select.options.length = 0;
+  	for (let entry of midiAccess.outputs) {
+		let input = entry[1];
+
+		select.add(new Option(input.name, input.id));
+	}
+}
+
+
+</script>
+
+</head>
+
+<body id="BodyId">
+
+<h1>Atari 2600 Music Explorer (<span id="VersionId"></span>) (
+    <a href="https://pizzatari.github.io/atari2600music"
+        title="Canonical link to this site">https://pizzatari.github.io/atari2600music</a>)
+    <button style="float:right;">Change View</button>
+</h1>
+
+<div id="PageId">
+	<div id="Row1Id" class="Row">
+	    <div class="panel" id="HorizRoll"></div><!-- panel -->
+	</div><!--- Row1 -->
+
+	<div id="Row2Id" class="row">
+	    <div id="Column1Id" class="column">
+		    <div id="OptionsId" class="panel">
+    		    <fieldset><legend>Atari Options</legend>
+        		    <select id="VideoFormatId" name="VideoFormat" class="frm">
+        		    <option value="ntsc">NTSC (60 Hz)</option>
+        		    <option value="pal">PAL (50 Hz)</option>
+        		    </select>
+        		    <label for="VideoFormatId" title="Select the television format: NTSC 60 Hz or PAL 50 Hz">Video/Audio format</label>
+
+        		    <select id="AtariTone0Id" name="AtariTone0" class="frm">
+        		    <option value="0">0 or 11 (silence)</option>
+        		    <option value="1">1 (buzzy high pitch)</option>
+        		    <option value="2">2 (noisy engine)</option>
+        		    <option value="3">3 (buzzy engine)</option>
+        		    <option value="4" selected>4 or 5 (pure high tone)</option>
+        		    <option value="6">6 or 10 (buzzy pure)</option>
+        		    <option value="7">7 or 9 (buzzy medium pitch)</option>
+        		    <option value="8">8 (noise)</option>
+        		    <option value="12">12 or 13 (pure medium tone)</option>
+        		    <option value="14">14 (low rumble)</option>
+        		    <option value="15">15 (loud rumble)</option>
+        		    </select>
+        		    <label for="AtariTone0Id">Atari tone (AUDC0)</label>
+
+        		    <select id="AtariTone1Id" name="AtariTone1" class="frm">
+        		    <option value=""></option>
+        		    <option value="0">0 or 11 (silence)</option>
+        		    <option value="1">1 (buzzy high pitch)</option>
+        		    <option value="2">2 (noisy engine)</option>
+        		    <option value="3">3 (buzzy engine)</option>
+        		    <option value="4" selected>4 or 5 (pure high tone)</option>
+        		    <option value="6">6 or 10 (buzzy pure)</option>
+        		    <option value="7">7 or 9 (buzzy medium pitch)</option>
+        		    <option value="8">8 (noise)</option>
+        		    <option value="12">12 or 13 (pure medium tone)</option>
+        		    <option value="14">14 (low rumble)</option>
+        		    <option value="15">15 (loud rumble)</option>
+        		    </select>
+        		    <label for="AtariTone1Id">Atari tone (AUDC1)</label>
+
+        		    <select id="AtariTone2Id" name="AtariTone2" class="frm">
+        		    <option value=""></option>
+        		    <option value="0">0 or 11 (silence)</option>
+        		    <option value="1">1 (buzzy high pitch)</option>
+        		    <option value="2">2 (noisy engine)</option>
+        		    <option value="3">3 (buzzy engine)</option>
+        		    <option value="4" selected>4 or 5 (pure high tone)</option>
+        		    <option value="6">6 or 10 (buzzy pure)</option>
+        		    <option value="7">7 or 9 (buzzy medium pitch)</option>
+        		    <option value="8">8 (noise)</option>
+        		    <option value="12">12 or 13 (pure medium tone)</option>
+        		    <option value="14">14 (low rumble)</option>
+        		    <option value="15">15 (loud rumble)</option>
+        		    </select>
+        		    <label for="AtariTone2Id">Atari tone (AUDC1)</label>
+    		    </fieldset>
+
+    		    <fieldset><legend>Piano Options</legend>
+        		    <select id="TuningId" name="Tuning" class="frm" disabled>
+        		    <option value="12-TET">12-TET</option>
+        		    <!-- option value="just">Just</option>
+        		    <option value="pyth">Pythagorean</option>
+        		    <option value="mean">Meantone</option>
+        		    <option value="just">Just</option -->
+        		    </select>
+
+        		    <label for="TuningMethodId">Tuning method</label>
+        		    <input type="number" id="A4FreqId" name="A4Freq" value="440.0" size="8" min="1.0" class="frm">
+        		    <label for="A4FreqId">A4 frequency (Hz)</label>
+        		    <input type="range" id="A4FreqRangeId" name="A4FreqRange" value="440" min="100" max="1000" class="frm">
+        		    <br/>
+
+        		    <input type="number" id="TransposeId" name="Transpose" value="0" size="5" class="frm">
+        		    <label for="TransposeId">Transpose (cents)</label>
+        		    <input type="range" id="TransposeRangeId" name="TransposeRange" value="0" min="-100" max="100" class="frm">
+        		    <br/>
+
+        		    <input type="number" id="NumMicroTonesId" name="NumMicroTones" value="1" size="5" min="1" class="frm">
+        		    <label for="NumMicroTonesId">Microtones per key</label>
+        		    <input type="range" id="NumMicroTonesRangeId" name="NumMicroTonesRange" value="1" min="1" max="11" class="frm">
+        		    <br/>
+
+        		    <input type="number" id="TuningSensitivityId" name="TuningSensitivity" value="50" size="8" min="0" max="50" class="frm">
+        		    <label for="TuningSensitivityId">Tuning sensitivity (cents)</label>
+        		    <input type="range" id="TuningSensitivityRangeId" name="TuningSensitivityRange" value="50" min="0" max="50" class="frm">
+    		    </fieldset>
+
+    		    <fieldset><legend>Result Options</legend>
+        		    <input type="checkbox" id="TuningGradientId" name="TuningGradientId" value="Yes" class="frm" checked>
+        		    <label for="TuningGradientId">Gradient</label>
+        		    <input type="checkbox" id="PrintBlackKeysId" name="PrintBlackKeys" value="Yes" class="frm">
+        		    <label for="PrintBlackKeysId" title="Print black keys as table rows"><span style="font-size:125%;">&sharp;&flat;</span> as rows</label>
+        		    <!--
+        		    <input type="checkbox" id="ShowBlackKeysId" name="ShowBlackKeys" value="Yes" class="frm">
+        		    <label for="ShowBlackKeysId" title="Show black keys as table rows"><span style="font-size:125%;">&sharp;&flat;</span> black keys</label>
+        		    -->
+        		    <input type="checkbox" id="PrintGeometryId" name="PrintGeometry" value="Yes" class="frm" checked disabled>
+        		    <label for="PrintGeometryId">Geometry</label>
+
+        		    <br/>
+
+        		    <input type="checkbox" id="PrintFrequencyId" name="PrintFrequency" value="Yes" class="frm" checked>
+        		    <label for="PrintFrequencyId">Freq. </label>
+        		    <!--
+        		    <input type="checkbox" id="InnerJoinId" name="InnerJoinId" value="Yes" checked>
+        		    <label for="InnerJoinId">Inner join</label>
+        		    <input type="checkbox" id="ExpandPianoId" name="ExpandPiano" value="Yes" class="frm">
+        		    <label for="ExpandPianoId" title="Expand piano to include out of range Atari notes">Expand</label>
+        		    -->
+        		    <input type="checkbox" id="ShrinkPianoId" name="ShrinkPiano" value="Yes" class="frm">
+        		    <label for="ShrinkPianoId" title="Shrink piano to fit to Atari note range">Shrink</label>
+        		    <input type="checkbox" id="JumpToFirstId" name="JumpToFirst" value="Yes" class="frm">
+        		    <label for="JumpToFirstId" title="Scroll to the first Atari note">Scroll</label>
+				    <select id="CentTypeId" class="frm" style="width:75px" disabled>
+				    <option value="A">All</option>
+				    <option value="P">Positive</option>
+				    <option value="N">Negative</option>
+				    </select>
+        		    <label for="CentTypeId" title="Filter notes with positive or negative cents">Cent Filter</label>
+
+        		    <button id="ResetId" name="Reset">Reload Defaults</button>
+    		    </fieldset>
+
+    		    <fieldset><legend>Output</legend>
+        		    <input type="checkbox" id="EnableSoundId" name="EnableSoundId" class="frm">
+        		    <label for="EnableSoundId">Enable audio output</label>
+        		    <br/>
+
+				    <select id="SoundTypeId" name="SoundType" class="frm" style="">
+				    <option value="sawtooth">Sawtooth</option>
+				    <option value="triangle" disabled>Triangle</option>
+				    <option value="square" disabled>Square</option>
+				    <option value="sine" disabled>Sine</option>
+				    <option value="tia" disabled>Emulated TIA</option>
+				    </select>
+        		    <label for="SoundTypeId">Audio output</label>
+        		    <br/>
+        		    <br/>
+
+        		    <button id="PrintPageId" name="Print" onclick="window.print()">Print Page</button>
+        		    <input type="checkbox" id="HideUIOnId" name="HideUIOnId" class="frm">
+        		    <label for="HideUIOnId">Hide UI</label>
+    		    </fieldset>
+		    </div><!-- panel -->
+
+		    <div class="panel">
+    		    <fieldset><legend>MIDI</legend>
+					<!--
+        		    <input type="checkbox" id="EnableMidiId" name="EnableMidi">
+        		    <label for="EnableMidiId">Enable MIDI</label>
+					-->
+
+				    <select id="MidiInputDeviceId" name="MidiInputDevice" class="frm" style="width:220px">
+				    <option value="">(none detected)</option>
+				    </select>
+        		    <label for="MidiInputDeviceId">Input</label>
+        		    <br/>
+
+				    <select id="MidiOutputDeviceId" name="MidiOutputDevice" class="frm" style="width:220px">
+				    <option value="">(none detected)</option>
+				    </select>
+        		    <label for="MidiOutputDeviceId">Output</label>
+					<br/>
+
+        		    <input type="number" id="PolyphonyId" name="Polyphony" class="frm" value="16" min="1" max="16" disabled>
+        		    <label for="PolyphonyId">Polyphony</label>
+        		    <br/>
+
+					<p>
+					If you do not have a physical MIDI keyboard, try loopMIDI and VMPK (Virtual MIDI Piano Keyboard) for a virtual solution.<br/><br/>
+					MIDI may not be enabled by default for Firefox or other browsers. You may need to approve permissions or configure settings.<br/><br/>
+					Edge and Chrome browsers disable access to software synths (i.e. Microsoft GS Wavetable).<br/><br/>
+					Restart the browser if you plug-in or unplug MIDI devices.
+					</p>
+
+    		    </fieldset>
+		    </div><!-- panel -->
+
+		    <div class="panel">
+    		    <fieldset><legend>News &amp; Updates</legend>
+			    <p>Version 0.5 released. Updates include:</p>
+			    <ul>
+				<li>Top horizontal piano roll</li>
+				<li>Proper grid layout</li>
+				<li>Second selectable Atari tone</li>
+				<li>Revised chart diagrams</li>
+				<li>Cleaning up prototype code</li>
+			    </ul>
+			    </fieldset>
+		    </div><!-- panel -->
+
+		    <div class="panel">
+    		    <fieldset><legend>Music Theory</legend>
+			    <p>My list of Music Theory resources relevant to Atari Music Explorer:</p>
+			    <ul>
+				<li><a target="_blank"
+						href="https://www.amazon.com/gp/product/0882848186/">Alfred's Adult All-In-One Course: Lesson-Theory-Technic: Level 1</a>
+					<br/>Quintessential piano lesson book
+				</li>
+				<li><a target="_blank"
+						href="https://www.youtube.com/watch?v=e4gizue_ULg&list=PL8hZtgRyL9WRWJLlIUPl-ydiDc8CZ_SJK">Lets Play Piano Methods</a>
+					<br/>Demonstrations of pieces in Alfred's All-In-One course
+				</li>
+				<li><a target="_blank"
+						href="https://www.youtube.com/watch?v=r7aQQQsvxho">Why are there no black notes in these gaps?</a>
+					<br/>
+				</li>
+				<li><a target="_blank"
+						href="https://www.youtube.com/watch?v=lvmzgVtZtUQ">Why Does Music Only Use 12 Different Notes?</a>
+					<br/>12 tone equal temperment (12-TET)
+				</li>
+				<li><a target="_blank"
+						href="https://www.youtube.com/watch?v=7JhVcGtT8z4">Why pianos and guitars aren't really in tune</a>
+					<br/>Equal temperment (12-TET) is not perfect tuning
+				</li>
+				<li><a target="_blank"
+						href="https://www.youtube.com/watch?v=feeB8ci38jE">Pythagorean tuning</a>
+					<br/>Stacking perfect fifths
+				</li>
+				<li><a target="_blank"
+						href="https://www.youtube.com/watch?v=UcIxwrZV10A">The Geometry of Consonance: Music and Mathematics</a>
+					<br/>Five (important) musical properties
+				</li>
+				<li><a target="_blank"
+						href="https://www.youtube.com/watch?v=EQMC6_N9y7U">The Circle of Fifths for SONGWRITING</a>
+					<br/>Visualizing the circle of fifths, chords, and modes.
+				</li>
+				<li><a target="_blank"
+						href="https://www.youtube.com/watch?v=1FRmmnKSBdg">MODES: How to Understand &amp; Actually Use Them</a>
+					<br/>Relating modes to the underlying major scale versus a rotation of its parent scale
+				</li>
+				<li><a target="_blank"
+						href="https://www.youtube.com/watch?v=FNl6bb755Z4">How to voice lead a chord progression</a>
+					<br/>
+				</li>
+				<li><a target="_blank"
+						href="https://www.youtube.com/watch?v=2kH7ncKjrF0">Modes of Minor and other Scales | Maths and Music</a>
+					<br/>Thinking about modes mathematically
+				</li>
+				<li><a target="_blank"
+						href="https://www.youtube.com/watch?v=JiNKlhspdKg">New Horizons in Music: Polyrhythms</a>
+					<br/>Pitch and rhythm are the same thing
+				</li>
+				<li><a target="_blank"
+						href="https://www.youtube.com/watch?v=d-Vb_xq7XG8">This piece only has ONE note...</a>
+					<br/>Proof you can keep it simple
+				</li>
+				<li><a target="_blank"
+						href="https://en.wikipedia.org/wiki/Piano_key_frequencies">Piano key frequencies</a>
+				</li>
+				<!--
+				<li><a target="_blank"
+						href=""></a>
+					<br/>
+				</li>
+				-->
+			    </ul>
+			    </fieldset>
+		    </div><!-- panel -->
+	    </div><!-- Column1 -->
+
+	    <div id="Column2Id" class="column">
+	        <div class="panel" id="VertRoll"></div><!-- panel -->
+	    </div><!--- Column2 -->
+
+	    <div id="Column3Id" class="column">
+		    <div class="panel">
+    		    <fieldset class="info"><legend>Info</legend>
+        		    <div id="VidFreqId"></div>
+        		    <div>Total in "tune": <span id="TotalTunedId">0</span> / Avg cents: <span id="QualityId">0</span></div>
+        		    <div>Cent range: <span id="MaxRangeId">0</span></div>
+        		    <div>Cent Distribution over Atari tones (31 &rarr; 0):<br/>
+					    <span>By Atari tone</span>
+            		    <canvas id="DistributionId" width="320" height="70"
+title="X axis is Atari pitch. Y axis is cents. Red gaps indicate a dropped note.
+Notes are dropped when they're below the selected tuning sensitivity
+or when two notes map to the same piano note, but one note is closer to tune."></canvas>
+            		    <canvas id="Distribution2Id" width="320" height="35"
+title="X axis is Atari pitch. Y axis is cents. Red gaps indicate a dropped note.
+Notes are dropped when they're below the selected tuning sensitivity
+or when two notes map to the same piano note, but one note is closer to tune."></canvas>
+					    <span>By piano tone</span>
+            		    <canvas id="Distribution3Id" width="320" height="50"
+title="X axis is piano key. Y axis is cents. Red gaps indicate a dropped note.
+Notes are dropped when they're below the selected tuning sensitivity
+or when two notes map to the same piano note, but one note is closer to tune."></canvas>
+            		    <canvas id="Distribution4Id" width="320" height="35"
+title="X axis is piano key. Y axis is cents. Red gaps indicate a dropped note.
+Notes are dropped when they're below the selected tuning sensitivity
+or when two notes map to the same piano note, but one note is closer to tune."></canvas>
+        		    </div>
+    		    </fieldset>
+
+    		    <fieldset><legend>"Tuned" Notes</legend>
+        		    <div id="TunedNotesListId"></div>
+    		    </fieldset>
+
+    		    <fieldset><legend>Major Chords</legend>
+        		    <div id="MajorChords"></div>
+    		    </fieldset>
+
+    		    <fieldset><legend>Major Scales</legend>
+        		    <div id="Majorscales"></div>
+    		    </fieldset>
+
+    		    <fieldset><legend>Minor Chords</legend>
+        		    <div id="MinorChords"></div>
+    		    </fieldset>
+
+    		    <fieldset><legend>Minor Scales</legend>
+        		    <div id="Minorscales"></div>
+    		    </fieldset>
+
+    		    <fieldset><legend>Cadences</legend>
+        		    <div id="Cadences"></div>
+    		    </fieldset>
+		    </div><!-- panel -->
+
+		    <div class="panel">
+    		    <fieldset><legend>Console</legend>
+        		    <div id="ConsoleId"></div>
+    		    </fieldset>
+		    </div><!-- panel -->
+	    </div><!--- Column3 -->
+	</div><!--- Row2 -->
+
+</div><!-- Page -->
+
+<div id="GeometryzContainerId" class="panel"></div>
+
+<div style="display:none"><img id="BachId" src="./img/cool-bach.png" width="237" height="259" /></div>
+
+
+</body>
+</html>

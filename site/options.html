@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base href="../0.4/">
+</head>
+
+<body>
+    <div id="WrapperId">
+		<div id="OptionsId" class="form">
+    		<fieldset><legend>Atari Options</legend>
+        		<select id="VideoFormatId" name="VideoFormat" class="frm">
+        		<option value="ntsc">NTSC (60 Hz)</option>
+        		<option value="pal">PAL (50 Hz)</option>
+        		</select>
+        		<label for="VideoFormatId" title="Select the television format: NTSC 60 Hz or PAL 50 Hz">Video/Audio format</label>
+
+        		<select id="AtariTone0Id" name="AtariTone0" class="frm">
+        		<option value="0">0 or 11 (silence)</option>
+        		<option value="1">1 (buzzy high pitch)</option>
+        		<option value="2">2 (noisy engine)</option>
+        		<option value="3">3 (buzzy engine)</option>
+        		<option value="4" selected>4 or 5 (pure high tone)</option>
+        		<option value="6">6 or 10 (buzzy pure)</option>
+        		<option value="7">7 or 9 (buzzy medium pitch)</option>
+        		<option value="8">8 (noise)</option>
+        		<option value="12">12 or 13 (pure medium tone)</option>
+        		<option value="14">14 (low rumble)</option>
+        		<option value="15">15 (loud rumble)</option>
+        		</select>
+        		<label for="AtariTone0Id">Atari tone (AUDC0)</label>
+
+        		<select id="AtariTone1Id" name="AtariTone1" class="frm">
+        		<option value=""></option>
+        		<option value="0">0 or 11 (silence)</option>
+        		<option value="1">1 (buzzy high pitch)</option>
+        		<option value="2">2 (noisy engine)</option>
+        		<option value="3">3 (buzzy engine)</option>
+        		<option value="4" selected>4 or 5 (pure high tone)</option>
+        		<option value="6">6 or 10 (buzzy pure)</option>
+        		<option value="7">7 or 9 (buzzy medium pitch)</option>
+        		<option value="8">8 (noise)</option>
+        		<option value="12">12 or 13 (pure medium tone)</option>
+        		<option value="14">14 (low rumble)</option>
+        		<option value="15">15 (loud rumble)</option>
+        		</select>
+        		<label for="AtariTone1Id">Atari tone (AUDC1)</label>
+    		</fieldset>
+
+    		<fieldset><legend>Piano Options</legend>
+        		<select id="TuningId" name="Tuning" class="frm" disabled>
+        		<option value="12-TET">12-TET</option>
+        		<!-- option value="just">Just</option>
+        		<option value="pyth">Pythagorean</option>
+        		<option value="mean">Meantone</option>
+        		<option value="just">Just</option -->
+        		</select>
+
+        		<label for="TuningMethodId">Tuning method</label>
+        		<input type="number" id="A4FreqId" name="A4Freq" value="440.0" size="8" min="1.0" class="frm">
+        		<label for="A4FreqId">A4 frequency (Hz)</label>
+        		<input type="range" id="A4FreqRangeId" name="A4FreqRange" value="440" min="100" max="1000" class="frm">
+        		<br>
+
+        		<input type="number" id="TransposeId" name="Transpose" value="0" size="5" class="frm">
+        		<label for="TransposeId">Transpose (cents)</label>
+        		<input type="range" id="TransposeRangeId" name="TransposeRange" value="0" min="-100" max="100" class="frm">
+        		<br>
+
+        		<input type="number" id="NumMicroTonesId" name="NumMicroTones" value="1" size="5" min="1" class="frm">
+        		<label for="NumMicroTonesId">Microtones per key</label>
+        		<input type="range" id="NumMicroTonesRangeId" name="NumMicroTonesRange" value="1" min="1" max="11" class="frm">
+        		<br>
+
+        		<input type="number" id="TuningSensitivityId" name="TuningSensitivity" value="50" size="8" min="0" max="50" class="frm">
+        		<label for="TuningSensitivityId">Tuning sensitivity (cents)</label>
+        		<input type="range" id="TuningSensitivityRangeId" name="TuningSensitivityRange" value="50" min="0" max="50" class="frm">
+    		</fieldset>
+
+    		<fieldset><legend>Result Options</legend>
+        		<input type="checkbox" id="TuningGradientId" name="TuningGradientId" value="Yes" class="frm" checked>
+        		<label for="TuningGradientId">Gradient</label>
+        		<input type="checkbox" id="PrintBlackKeysId" name="PrintBlackKeys" value="Yes" class="frm">
+        		<label for="PrintBlackKeysId" title="Print black keys as table rows"><span style="font-size:125%;">&sharp;&flat;</span> as rows</label>
+        		<!--
+        		<input type="checkbox" id="ShowBlackKeysId" name="ShowBlackKeys" value="Yes" class="frm">
+        		<label for="ShowBlackKeysId" title="Show black keys as table rows"><span style="font-size:125%;">&sharp;&flat;</span> black keys</label>
+        		-->
+        		<input type="checkbox" id="PrintGeometryId" name="PrintGeometry" value="Yes" class="frm" checked disabled>
+        		<label for="PrintGeometryId">Geometry</label>
+
+        		<br/>
+
+        		<input type="checkbox" id="PrintFrequencyId" name="PrintFrequency" value="Yes" class="frm" checked>
+        		<label for="PrintFrequencyId">Freq. </label>
+        		<!--
+        		<input type="checkbox" id="InnerJoinId" name="InnerJoinId" value="Yes" checked>
+        		<label for="InnerJoinId">Inner join</label>
+        		<input type="checkbox" id="ExpandPianoId" name="ExpandPiano" value="Yes" class="frm">
+        		<label for="ExpandPianoId" title="Expand piano to include out of range Atari notes">Expand</label>
+        		-->
+        		<input type="checkbox" id="ShrinkPianoId" name="ShrinkPiano" value="Yes" class="frm">
+        		<label for="ShrinkPianoId" title="Shrink piano to fit to Atari note range">Shrink</label>
+        		<input type="checkbox" id="JumpToFirstId" name="JumpToFirst" value="Yes" class="frm">
+        		<label for="JumpToFirstId" title="Scroll to the first Atari note">Scroll</label>
+				<select id="CentTypeId" class="frm" style="width:75px" disabled>
+				<option value="A">All</option>
+				<option value="P">Positive</option>
+				<option value="N">Negative</option>
+				</select>
+        		<label for="CentTypeId" title="Filter notes with positive or negative cents">Cent Filter</label>
+
+        		<br>
+        		<input type="checkbox" id="EnableSoundId" name="EnableSoundId" class="frm">
+        		<label for="EnableSoundId">Enable Sound</label>
+        		<button id="ResetId" name="Reset">Reload Defaults</button>
+    		</fieldset>
+
+    		<fieldset><legend>Output</legend>
+        		<button id="PrintPageId" name="Print" onclick="window.print()">Print Page</button>
+        		<input type="checkbox" id="HideUIOnId" name="HideUIOnId" class="frm">
+        		<label for="HideUIOnId">Hide UI</label>
+    		</fieldset>
+		</div>
+
+		<div id="TextPanelId">
+    		<fieldset><legend>News &amp; Updates</legend>
+			<p>News &mp; Updates</p>
+			<ul>
+			<li>Latest update</ul>
+			<li>Added piano roll</ul>
+			</ul>
+			</fieldset>
+		</div>
+
+		<div id="ResultsId">
+    		<fieldset class="info"><legend>Info</legend>
+        		<div id="VidFreqId"></div>
+        		<div>Total in "tune": <span id="TotalTunedId">0</span> / Avg cents: <span id="QualityId">0</span></div>
+        		<div>Cent range: <span id="MaxRangeId">0</span></div>
+        		<div>Cent Distribution over Atari tones (31 &rarr; 0):<br/>
+					<span>By Atari tone</span>
+            		<canvas id="DistributionId" width="320" height="70"
+                		title="X axis is Atari pitch. Y axis is cents. Red gaps indicate a dropped note.
+		Notes are dropped when they're below the selected tuning sensitivity
+		or when two notes map to the same piano note, but one note is closer to tune."></canvas>
+            		<canvas id="Distribution2Id" width="320" height="35"
+                		title="X axis is Atari pitch. Y axis is cents. Red gaps indicate a dropped note.
+		Notes are dropped when they're below the selected tuning sensitivity
+		or when two notes map to the same piano note, but one note is closer to tune."></canvas>
+					<span>By piano tone</span>
+            		<canvas id="Distribution3Id" width="320" height="50"
+                		title="X axis is piano key. Y axis is cents. Red gaps indicate a dropped note.
+		Notes are dropped when they're below the selected tuning sensitivity
+		or when two notes map to the same piano note, but one note is closer to tune."></canvas>
+            		<canvas id="Distribution4Id" width="320" height="35"
+                		title="X axis is piano key. Y axis is cents. Red gaps indicate a dropped note.
+		Notes are dropped when they're below the selected tuning sensitivity
+		or when two notes map to the same piano note, but one note is closer to tune."></canvas>
+        		</div>
+    		</fieldset>
+
+    		<fieldset><legend>"Tuned" Notes</legend>
+        		<div id="TunedNotesListId"></div>
+    		</fieldset>
+
+    		<fieldset><legend>Major Chords</legend>
+        		<div id="ChordsListId"></div>
+    		</fieldset>
+		</div>
+
+</body>
+</html>
